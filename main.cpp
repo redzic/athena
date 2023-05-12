@@ -5,6 +5,7 @@
 #include <array>
 #include <bitset>
 #include <bit>
+#include <immintrin.h>
 
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
@@ -395,14 +396,40 @@ u8 fix_bits_rank(u8 occup, const u8 idx)
     return (u8)(result & 0xff);
 }
 
-u64 fix_bits_file(u64 occup, const u8 row_idx)
+u64 ext8bits(u64 x)
 {
-    return 0;
+    return _pext_u64(x, broadcast_byte(1 << 7));
 }
 
-int main()
+u64 dep8bits(u64 x)
 {
-    auto brd = Board::starting_position();
+    return _pdep_u64(x, broadcast_byte(1 << 7));
+}
+
+// row_idx is 0-7
+u64 fix_bits_file(u64 occup, const u8 sqr_idx)
+{
+    const u8 x_idx = sqr_idx % 8;
+    const u8 y_idx = sqr_idx / 8;
+
+    u64 occup_file1 = (occup << x_idx) & broadcast_byte(1 << 7);
+    u8 file1 = (u8)(ext8bits(occup_file1) & 0xff);
+
+    return dep8bits(fix_bits_rank(file1, y_idx)) >> x_idx;
+}
+
+constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept
+{
+    const u8 x_idx = sqr_idx % 8;
+    const u8 y_idx = sqr_idx / 8;
+
+    const u8 shift = 8 * (7 - y_idx);
+    return ((u64)(fix_bits_rank(occup >> shift, x_idx)) << shift) ^ fix_bits_file(occup, sqr_idx);
+}
+
+int main(int argc, char **argv)
+{
+    // auto brd = Board::starting_position();
     // TODO make this ((u64)1 << 63) thing a constant
     // like a1, b1, c1, ...
 
@@ -412,35 +439,43 @@ int main()
     // const u8 x = 7;
     // const u8 y = 4;
     // const u8 idx = 8 * y + x;
+    const u8 idx = 12;
 
     // brd.wr() |= (1ull << 63) >> idx;
 
     // auto brd1 = rook_attacks(8 * 2 + 3);
     // print_bitboard(brd1);
 
-    u64 board1 = broadcast_byte(1 << 7);
-    board1 &= ~(1ull << 63);
+    u64 board1 = 0;
+    board1 |= (1ull << 63) >> idx;
 
-    print_bitboard(board1);
+    board1 |= board1 >> 16;
 
-    u32 a = 0b01111100;
+    // print_bitboard(board1);
+    // print_bitboard(fix_bits_file(board1, idx));
+    print_bitboard(rook_attacks_fixed(0, idx));
+
+    // print_bits((u8)ext8bits(board1));
+    // std::cout << gather_8(board1) << '\n';
+
+    // u32 a = 0b01111100;
     // u32 b = 0b01100010;
-    u32 b = 0b01010010;
+    // u32 b = 0b01010010;
     // u32 b = 0;
 
     // countr_zero - counts 0s, starting from lsb (right side,
     // assuming msb on left and lsb on right)
 
-    std::bitset<8> result = a - b;
+    // std::bitset<8> result = a - b;
 
     // std::cout << result << '\n';
     // std::cout << "bits: " << std::countl_zero((u8)a) << '\n';
 
-    const u8 p_idx = 5;
+    // const u8 p_idx = 5;
 
-    std::cout << std::bitset<8>(fix_bits_rank(b, p_idx)) << " <- fix_bits() ret value\n";
-    std::cout << std::bitset<8>(b) << " <- occupancy map\n";
-    std::cout << std::bitset<8>((1 << 7) >> p_idx) << " <- piece idx\n";
+    // std::cout << std::bitset<8>(fix_bits_rank(b, p_idx)) << " <- fix_bits() ret value\n";
+    // std::cout << std::bitset<8>(b) << " <- occupancy map\n";
+    // std::cout << std::bitset<8>((1 << 7) >> p_idx) << " <- piece idx\n";
 
     // print_bitboard(empty);
 
