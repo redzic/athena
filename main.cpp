@@ -423,9 +423,6 @@ int main()
 
     print_bitboard(board1);
 
-    auto z = gather_every_8th_bit(board1);
-    print_bits(z);
-
     u32 a = 0b01111100;
     // u32 b = 0b01100010;
     u32 b = 0b01010010;
