@@ -134,12 +134,15 @@ bool is_board_valid_simple(Board bitboard)
     return true;
 }
 
+// checks if there are multiple bitboards with the same bits set
+// for any of the squares
 bool is_board_valid(Board bitboard)
 {
-    auto evalbits = [](u64 a, u64 b, u64 c, u64 d)
+    constexpr auto evalbits = [](u64 a, u64 b, u64 c, u64 d)
     {
-        u64 a1 = (c & d) | (b & d) | (b & c) | (a & d) | (a & c) | (a & b);
-        u64 a2 = a | b | c | d;
+        u64 a1 = c | (a & b) | (a & d) | (b & d);
+        u64 a2 = a | b | d;
+
         return std::make_tuple(a1, a2);
     };
 
