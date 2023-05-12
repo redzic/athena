@@ -39,23 +39,23 @@ Board Board::starting_position()
 {
     Board b;
 
-    *b.wp() = ((u64)((1 << 8) - 1) << 8);
-    *b.bp() = ((u64)((1 << 8) - 1) << (56 - 8));
+    *b.wp() = (u64)((1 << 8) - 1) << 8;
+    *b.bp() = (u64)((1 << 8) - 1) << (56 - 8);
 
-    *b.wr() = ((u64)0b10000001);
-    *b.br() = ((u64)0b10000001 << 56);
+    *b.wr() = (u64)0b10000001;
+    *b.br() = (u64)0b10000001 << 56;
 
-    *b.wn() = ((u64)0b01000010);
-    *b.bn() = ((u64)0b01000010 << 56);
+    *b.wn() = (u64)0b01000010;
+    *b.bn() = (u64)0b01000010 << 56;
 
-    *b.wb() = ((u64)0b00100100);
-    *b.bb() = ((u64)0b00100100 << 56);
+    *b.wb() = (u64)0b00100100;
+    *b.bb() = (u64)0b00100100 << 56;
 
-    *b.wq() = ((u64)0b00010000);
-    *b.bq() = ((u64)0b00010000 << 56);
+    *b.wq() = (u64)0b00010000;
+    *b.bq() = (u64)0b00010000 << 56;
 
-    *b.wk() = ((u64)0b00001000);
-    *b.bk() = ((u64)0b00001000 << 56);
+    *b.wk() = (u64)0b00001000;
+    *b.bk() = (u64)0b00001000 << 56;
 
     return b;
 }
@@ -120,6 +120,11 @@ bool is_board_valid_simple(Board bitboard)
             count += (boards[j] >> (63 - i)) & 1;
         }
 
+        // LLVM optimization idea: if this branch were in the
+        // middle of the for loop, the code would still ultimately
+        // do the same thing, but autovectorization would not be
+        // possible. Some heursitics could possibly be used to
+        // judge whether or not the early-exits would be worth it.
         if (count > 1)
         {
             return false;
