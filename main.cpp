@@ -144,7 +144,7 @@ consteval u64 knight_attack_map(const u8 sqr_idx)
 {
     u64 attack_map = 0;
 
-    const std::tuple<i32, i32> knight_offsets[8] = {
+    const std::tuple<int, int> knight_offsets[8] = {
         {1, 2},
         {2, 1},
         {-1, 2},
