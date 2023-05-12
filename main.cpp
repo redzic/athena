@@ -101,7 +101,7 @@ constexpr Board Board::starting_position()
     return b;
 }
 
-constexpr const u8 MASK6 = (1 << 6) - 1;
+constexpr u8 MASK6 = (1 << 6) - 1;
 
 struct Move
 {
@@ -348,10 +348,10 @@ bool is_board_valid(Board bitboard)
 // bro how the heck does this work...
 u64 knight_attacks_multiple(u64 knights)
 {
-    u64 l1 = (knights >> 1) & ((u64)(0x7f7f7f7f7f7f7f7f));
-    u64 l2 = (knights >> 2) & ((u64)(0x3f3f3f3f3f3f3f3f));
-    u64 r1 = (knights << 1) & ((u64)(0xfefefefefefefefe));
-    u64 r2 = (knights << 2) & ((u64)(0xfcfcfcfcfcfcfcfc));
+    u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
+    u64 l2 = (knights >> 2) & 0x3f3f3f3f3f3f3f3full;
+    u64 r1 = (knights << 1) & 0xfefefefefefefefeull;
+    u64 r2 = (knights << 2) & 0xfcfcfcfcfcfcfcfcull;
     u64 h1 = l1 | r1;
     u64 h2 = l2 | r2;
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
