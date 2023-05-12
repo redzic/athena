@@ -83,18 +83,18 @@ public:
 
 constexpr Board Board::starting_position()
 {
-    u64 wp = (u64)((1 << 8) - 1) << 8;
-    u64 bp = (u64)((1 << 8) - 1) << (56 - 8);
-    u64 wr = (u64)0b10000001;
-    u64 br = (u64)0b10000001 << 56;
-    u64 wn = (u64)0b01000010;
-    u64 bn = (u64)0b01000010 << 56;
-    u64 wb = (u64)0b00100100;
-    u64 bb = (u64)0b00100100 << 56;
-    u64 wq = (u64)0b00010000;
-    u64 bq = (u64)0b00010000 << 56;
-    u64 wk = (u64)0b00001000;
-    u64 bk = (u64)0b00001000 << 56;
+    u64 wp = ((1ull << 8) - 1) << 8;
+    u64 bp = ((1ull << 8) - 1) << (56 - 8);
+    u64 wr = 0b10000001ull;
+    u64 br = 0b10000001ull << 56;
+    u64 wn = 0b01000010ull;
+    u64 bn = 0b01000010ull << 56;
+    u64 wb = 0b00100100ull;
+    u64 bb = 0b00100100ull << 56;
+    u64 wq = 0b00010000ull;
+    u64 bq = 0b00010000ull << 56;
+    u64 wk = 0b00001000ull;
+    u64 bk = 0b00001000ull << 56;
 
     Board b(wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk);
 
