@@ -9,6 +9,9 @@ def evalbits(a, b, c, d):
     a1 = (c & d) | (b & d) | (b & c) | (a & d) | (a & c) | (a & b)
     a2 = a | b | c | d
 
+    # a1 = c | a | (b & d)
+    # a2 = b | d
+
     print(f"{a}{b} | {c}{d} | {a1}{a2}")
 
     return (a1, a2)
@@ -66,19 +69,25 @@ print(tree_reduce())
 #     B2 = O2
 
 
-# for x in range(4):
-#     A1 = (x >> 1) & 1
-#     A2 = x & 1
+print("===============")
+for y in range(4):
+    c = (y >> 1) & 1
+    d = y & 1
 
-#     for y in range(4):
-#         B1 = (y >> 1) & 1
-#         B2 = y & 1
+    for x in range(4):
+        a = (x >> 1) & 1
+        b = x & 1
 
-#         # this expression could possibly be simplified further by considering
-#         # that some outputs can be anything
+        if [1, 0] != [c, d]:
+            # this expression could possibly be simplified further by considering
+            # that some outputs can be anything
 
-#         # cd + bd + bc + ad + ac + ab
-#         O1 = (B1 & B2) | (A2 & B2) | (A2 & B1) | (A1 & B2) | (A1 & B1) | (A1 & A1)
-#         O2 = A1 | A2 | B1 | B2
+            # cd + bd + bc + ad + ac + ab
+            # CD+AB+AD+BC+AC+BD
+            # O1 = (c & d) | (b & d) | (b & c) | (a & d) | (a & c) | (a & b)
+            # C+AB+AD+BD
+            O1 = c | (a & b) | (a & d) | (b & d)
+            O2 = a | b | d
 
-#         print(f"{A1}{A2} | {B1}{B2} | {O1}{O2}")
+            print(f"{a}{b} | {c}{d} | {O1}{O2}")
+    print("===============")
