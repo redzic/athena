@@ -14,29 +14,51 @@
 
 struct Board
 {
-    // WHITE PIECES
-
-    // pawn, knight, rook, bishop, queen, king
-    u64 wp;
-    u64 wn;
-    u64 wr;
-    u64 wb;
-    u64 wq;
-    u64 wk;
-
-    // BLACK PIECES
-
-    u64 bp;
-    u64 bn;
-    u64 br;
-    u64 bb;
-    u64 bq;
-    u64 bk;
+    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk
+    u64 bitboards[12];
 
 public:
     // returns new board of standard starting chess position
     static Board starting_position();
+
+    u64 *wp() { return &bitboards[0]; }
+    u64 *wn() { return &bitboards[1]; }
+    u64 *wr() { return &bitboards[2]; }
+    u64 *wb() { return &bitboards[3]; }
+    u64 *wq() { return &bitboards[4]; }
+    u64 *wk() { return &bitboards[5]; }
+    u64 *bp() { return &bitboards[6]; }
+    u64 *bn() { return &bitboards[7]; }
+    u64 *br() { return &bitboards[8]; }
+    u64 *bb() { return &bitboards[9]; }
+    u64 *bq() { return &bitboards[10]; }
+    u64 *bk() { return &bitboards[11]; }
 };
+
+Board Board::starting_position()
+{
+    Board b;
+
+    *b.wp() = ((u64)((1 << 8) - 1) << 8);
+    *b.bp() = ((u64)((1 << 8) - 1) << (56 - 8));
+
+    *b.wr() = ((u64)0b10000001);
+    *b.br() = ((u64)0b10000001 << 56);
+
+    *b.wn() = ((u64)0b01000010);
+    *b.bn() = ((u64)0b01000010 << 56);
+
+    *b.wb() = ((u64)0b00100100);
+    *b.bb() = ((u64)0b00100100 << 56);
+
+    *b.wq() = ((u64)0b00010000);
+    *b.bq() = ((u64)0b00010000 << 56);
+
+    *b.wk() = ((u64)0b00001000);
+    *b.bk() = ((u64)0b00001000 << 56);
+
+    return b;
+}
 
 constexpr const u8 MASK6 = (1 << 6) - 1;
 
@@ -68,31 +90,6 @@ constexpr Move::Move(u8 from, u8 to, u8 tag)
     bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0b1111) >> 12);
 }
 
-Board Board::starting_position()
-{
-    Board b;
-
-    b.wp = (u64)((1 << 8) - 1) << 8;
-    b.bp = (u64)((1 << 8) - 1) << (56 - 8);
-
-    b.wr = (u64)0b10000001;
-    b.br = (u64)0b10000001 << 56;
-
-    b.wn = (u64)0b01000010;
-    b.bn = (u64)0b01000010 << 56;
-
-    b.wb = (u64)0b00100100;
-    b.bb = (u64)0b00100100 << 56;
-
-    b.wq = (u64)0b00010000;
-    b.bq = (u64)0b00010000 << 56;
-
-    b.wk = (u64)0b00001000;
-    b.bk = (u64)0b00001000 << 56;
-
-    return b;
-}
-
 void print_bitboard(u64 bitboard)
 {
     for (auto i = 0; i < 8; i++)
@@ -111,20 +108,7 @@ void print_bitboard(u64 bitboard)
 
 bool is_board_valid_simple(Board bitboard)
 {
-    // TODO convert original thing into array of u64
-    // so we don't have to do this shit manually
-    u64 boards[12] = {bitboard.wp,
-                      bitboard.wn,
-                      bitboard.wr,
-                      bitboard.wb,
-                      bitboard.wq,
-                      bitboard.wk,
-                      bitboard.bp,
-                      bitboard.bn,
-                      bitboard.br,
-                      bitboard.bb,
-                      bitboard.bq,
-                      bitboard.bk};
+    u64 *boards = bitboard.bitboards;
 
     for (auto i = 0; i < 64; i++)
     {
@@ -154,18 +138,7 @@ bool is_board_valid(Board bitboard)
         return std::make_tuple(a1, a2);
     };
 
-    u64 boards[12] = {bitboard.wp,
-                      bitboard.wn,
-                      bitboard.wr,
-                      bitboard.wb,
-                      bitboard.wq,
-                      bitboard.wk,
-                      bitboard.bp,
-                      bitboard.bn,
-                      bitboard.br,
-                      bitboard.bb,
-                      bitboard.bq,
-                      bitboard.bk};
+    u64 *boards = bitboard.bitboards;
 
     auto [a1, a2] = evalbits(0, boards[0], 0, boards[1]);
     auto [b1, b2] = evalbits(0, boards[2], 0, boards[3]);
@@ -191,12 +164,12 @@ void test_is_board_valid()
 
     // Test case 2: two pawns on the same square - should return false
     Board invalid_position = starting_position;
-    invalid_position.wp |= (u64)((1 << 8) - 1) << (56 - 8); // Adding a white pawn to the same square as a black pawn
+    *invalid_position.wp() |= (u64)((1 << 8) - 1) << (56 - 8); // Adding a white pawn to the same square as a black pawn
     std::cout << "Test 2: " << std::boolalpha << is_board_valid(invalid_position) << std::endl;
 
     // Test case 3: two queens on the same square - should return false
     Board invalid_position_2 = starting_position;
-    invalid_position_2.wq |= (u64)0b00010000 << 56; // Adding a white queen to the same square as a black queen
+    *invalid_position_2.wq() |= (u64)0b00010000 << 56; // Adding a white queen to the same square as a black queen
     std::cout << "Test 3: " << std::boolalpha << is_board_valid(invalid_position_2) << std::endl;
 }
 
