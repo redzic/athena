@@ -2,16 +2,17 @@
 #include <cstdint>
 #include <tuple>
 #include <cassert>
+#include <array>
 
-#define u64 uint64_t
-#define u32 uint32_t
-#define u16 uint16_t
-#define u8 uint8_t
+using u64 = std::uint64_t;
+using u32 = std::uint32_t;
+using u16 = std::uint16_t;
+using u8 = std::uint8_t;
 
-#define i64 int64_t
-#define i32 int32_t
-#define i16 int16_t
-#define i8 int8_t
+using i64 = std::int64_t;
+using i32 = std::int32_t;
+using i16 = std::int16_t;
+using i8 = std::int8_t;
 
 enum PieceColor
 {
@@ -30,21 +31,21 @@ public:
 
     // TODO somehow figure out const version
 
-    u64 *wp() { return &bitboards[0]; }
-    u64 *wn() { return &bitboards[1]; }
-    u64 *wr() { return &bitboards[2]; }
-    u64 *wb() { return &bitboards[3]; }
-    u64 *wq() { return &bitboards[4]; }
-    u64 *wk() { return &bitboards[5]; }
-    u64 *bp() { return &bitboards[6]; }
-    u64 *bn() { return &bitboards[7]; }
-    u64 *br() { return &bitboards[8]; }
-    u64 *bb() { return &bitboards[9]; }
-    u64 *bq() { return &bitboards[10]; }
-    u64 *bk() { return &bitboards[11]; }
-    u64 *white() { return &bitboards[12]; }
-    u64 *black() { return &bitboards[13]; }
-    u64 *occup() { return &bitboards[14]; }
+    u64 &wp() { return bitboards[0]; }
+    u64 &wn() { return bitboards[1]; }
+    u64 &wr() { return bitboards[2]; }
+    u64 &wb() { return bitboards[3]; }
+    u64 &wq() { return bitboards[4]; }
+    u64 &wk() { return bitboards[5]; }
+    u64 &bp() { return bitboards[6]; }
+    u64 &bn() { return bitboards[7]; }
+    u64 &br() { return bitboards[8]; }
+    u64 &bb() { return bitboards[9]; }
+    u64 &bq() { return bitboards[10]; }
+    u64 &bk() { return bitboards[11]; }
+    u64 &white() { return bitboards[12]; }
+    u64 &black() { return bitboards[13]; }
+    u64 &occup() { return bitboards[14]; }
 
     constexpr Board(
         u64 wp,
@@ -138,25 +139,26 @@ void print_bitboard(u64 bitboard)
     }
 }
 
-u64 knight_attacks_slow(Board &brd, const u8 sqr_idx)
+// simple but slow implementation, only used to build table at compile-time
+consteval u64 knight_attack_map(const u8 sqr_idx)
 {
     u64 attack_map = 0;
 
     const std::tuple<i32, i32> knight_offsets[8] = {
-        std::make_tuple(1, 2),
-        std::make_tuple(2, 1),
-        std::make_tuple(-1, 2),
-        std::make_tuple(-2, 1),
-        std::make_tuple(1, -2),
-        std::make_tuple(2, -1),
-        std::make_tuple(-1, -2),
-        std::make_tuple(-2, -1),
+        {1, 2},
+        {2, 1},
+        {-1, 2},
+        {-2, 1},
+        {1, -2},
+        {2, -1},
+        {-1, -2},
+        {-2, -1},
     };
 
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
 
-    for (int i = 0; i < 8; i++)
+    for (auto i = 0; i < 8; i++)
     {
         const auto tup = knight_offsets[i];
 
@@ -173,8 +175,29 @@ u64 knight_attacks_slow(Board &brd, const u8 sqr_idx)
     return attack_map;
 }
 
+consteval std::array<u64, 64> build_knight_table()
+{
+    std::array<u64, 64> table;
+
+    for (auto i = 0; i < 64; i++)
+    {
+        table[i] = knight_attack_map(i);
+    }
+
+    return table;
+}
+
+constexpr static const auto KNIGHT_ATTACK_TABLE = build_knight_table();
+
 // assume white pieces
+
 u64 knight_attacks(Board &brd, const u8 sqr_idx)
+{
+    return KNIGHT_ATTACK_TABLE[sqr_idx];
+}
+
+// seems best on clang since the compiled code is branchless
+u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
 {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
@@ -230,86 +253,6 @@ u64 knight_attacks_fast(Board &brd, const u8 sqr_idx)
 {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
-    u64 attack_map = 0;
-
-    // center = 2,2 = 18
-
-    // ORIGINAL:
-
-    // 01010000
-    // 10001000
-    // 00000000
-    // 10001000
-    // 01010000
-    // 00000000
-    // 00000000
-    // 00000000
-
-    // when you shift left by n bits, you want
-    // to mask out the bits on the right
-
-    // 01000010
-    // 00100000
-    // 00000010
-    // 00100001
-    // 01000000
-    // 00000000
-    // 00000000
-    // 00000000
-
-    // so since we shifted left by 2, mask would look like this:
-    // 11111100
-    // 11111100
-    // 11111100
-    // 11111100
-    // 11111100
-    // 11111100
-    // 11111100
-    // 11111100
-
-    // P1:
-
-    // 01010000
-    // 10001000
-    // 00000000
-    // 00000000
-    // 00000000
-    // 00000000
-    // 00000000
-    // 00000000
-
-    // P2:
-
-    // 10001000
-    // 01010000
-    // 00000000
-    // 00000000
-    // 00000000
-    // 00000000
-    // 00000000
-    // 00000000
-
-    // RIGHT:
-
-    // 01000000
-    // 00100000
-    // 00000000
-    // 00100000
-    // 01000000
-    // 00000000
-    // 00000000
-    // 00000000
-
-    // LEFT:
-
-    // 00000010
-    // 00000100
-    // 00000000
-    // 00000100
-    // 00000010
-    // 00000000
-    // 00000000
-    // 00000000
 
     const u64 DUP8_BITS = 0x101010101010101;
 
@@ -399,21 +342,16 @@ bool is_board_valid(Board bitboard)
     return (q1 & q2) == 0;
 }
 
-void test_is_board_valid()
+// bro how the heck does this work...
+u64 knight_attacks_multiple(u64 knights)
 {
-    // Test case 1: starting position - should return true
-    Board starting_position = Board::starting_position();
-    std::cout << "Test 1: " << std::boolalpha << is_board_valid(starting_position) << std::endl;
-
-    // Test case 2: two pawns on the same square - should return false
-    Board invalid_position = starting_position;
-    *invalid_position.wp() |= (u64)((1 << 8) - 1) << (56 - 8); // Adding a white pawn to the same square as a black pawn
-    std::cout << "Test 2: " << std::boolalpha << is_board_valid(invalid_position) << std::endl;
-
-    // Test case 3: two queens on the same square - should return false
-    Board invalid_position_2 = starting_position;
-    *invalid_position_2.wq() |= (u64)0b00010000 << 56; // Adding a white queen to the same square as a black queen
-    std::cout << "Test 3: " << std::boolalpha << is_board_valid(invalid_position_2) << std::endl;
+    u64 l1 = (knights >> 1) & ((u64)(0x7f7f7f7f7f7f7f7f));
+    u64 l2 = (knights >> 2) & ((u64)(0x3f3f3f3f3f3f3f3f));
+    u64 r1 = (knights << 1) & ((u64)(0xfefefefefefefefe));
+    u64 r2 = (knights << 2) & ((u64)(0xfcfcfcfcfcfcfcfc));
+    u64 h1 = l1 | r1;
+    u64 h2 = l2 | r2;
+    return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
 
 int main()
@@ -423,29 +361,30 @@ int main()
     // like a1, b1, c1, ...
 
     // x = 0,1,6,7
-    // need filtering
+    // need masking
 
     const u8 x = 7;
     const u8 y = 4;
     const u8 idx = 8 * y + x;
 
-    // *brd.wn() |= ((u64)1 << 63) >> idx;
+    brd.wn() |= ((u64)1 << 63) >> idx;
 
-    // print_bitboard(*brd.wn());
+    print_bitboard(brd.wn());
 
-    u64 attacks = knight_attacks_fast(brd, idx);
+    // u64 attacks = knight_attacks_fast(brd, idx);
+    u64 attacks = knight_attacks_multiple(brd.wn());
     print_bitboard(attacks);
+    std::cout << "================================\n";
+    print_bitboard(brd.wn());
 
     for (int idx = 0; idx < 64; idx++)
     {
         u64 a1 = knight_attacks(brd, idx);
-        u64 a2 = knight_attacks_slow(brd, idx);
-        u64 a3 = knight_attacks_fast(brd, idx);
+        u64 a2 = knight_attacks_bitwise(brd, idx);
 
         print_bitboard(a1);
         std::cout << "==========================\n";
 
         assert(a1 == a2);
-        assert(a1 == a3);
     }
 }
