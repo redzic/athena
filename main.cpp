@@ -31,21 +31,21 @@ public:
 
     // TODO somehow figure out const version
 
-    u64 &wp() { return bitboards[0]; }
-    u64 &wn() { return bitboards[1]; }
-    u64 &wr() { return bitboards[2]; }
-    u64 &wb() { return bitboards[3]; }
-    u64 &wq() { return bitboards[4]; }
-    u64 &wk() { return bitboards[5]; }
-    u64 &bp() { return bitboards[6]; }
-    u64 &bn() { return bitboards[7]; }
-    u64 &br() { return bitboards[8]; }
-    u64 &bb() { return bitboards[9]; }
-    u64 &bq() { return bitboards[10]; }
-    u64 &bk() { return bitboards[11]; }
-    u64 &white() { return bitboards[12]; }
-    u64 &black() { return bitboards[13]; }
-    u64 &occup() { return bitboards[14]; }
+    constexpr u64 &wp() { return bitboards[0]; }
+    constexpr u64 &wn() { return bitboards[1]; }
+    constexpr u64 &wr() { return bitboards[2]; }
+    constexpr u64 &wb() { return bitboards[3]; }
+    constexpr u64 &wq() { return bitboards[4]; }
+    constexpr u64 &wk() { return bitboards[5]; }
+    constexpr u64 &bp() { return bitboards[6]; }
+    constexpr u64 &bn() { return bitboards[7]; }
+    constexpr u64 &br() { return bitboards[8]; }
+    constexpr u64 &bb() { return bitboards[9]; }
+    constexpr u64 &bq() { return bitboards[10]; }
+    constexpr u64 &bk() { return bitboards[11]; }
+    constexpr u64 &white() { return bitboards[12]; }
+    constexpr u64 &black() { return bitboards[13]; }
+    constexpr u64 &occup() { return bitboards[14]; }
 
     constexpr Board(
         u64 wp,
@@ -108,9 +108,9 @@ struct Move
     u16 bits;
 
 public:
-    u8 from_idx() { return bits & MASK6; }
-    u8 to_idx() { return (bits << 6) & MASK6; }
-    u8 tag_bits() { return (bits << 12); }
+    constexpr u8 from_idx() { return bits & MASK6; }
+    constexpr u8 to_idx() { return (bits << 6) & MASK6; }
+    constexpr u8 tag_bits() { return (bits << 12); }
 
     constexpr Move(u8 from, u8 to, u8 tag);
 };
@@ -189,13 +189,13 @@ static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 
 // assume white pieces
 
-u64 knight_attacks(Board &brd, const u8 sqr_idx)
+constexpr u64 knight_attacks(Board &brd, const u8 sqr_idx)
 {
     return KNIGHT_ATTACK_TABLE[sqr_idx];
 }
 
 // seems best on clang since the compiled code is branchless
-u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
+constexpr u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
 {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
@@ -252,7 +252,7 @@ consteval u64 broadcast_byte(u8 b)
 }
 
 // assume white pieces
-u64 knight_attacks_fast(Board &brd, const u8 sqr_idx)
+constexpr u64 knight_attacks_fast(Board &brd, const u8 sqr_idx)
 {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
@@ -285,7 +285,7 @@ u64 knight_attacks_fast(Board &brd, const u8 sqr_idx)
     }
 }
 
-bool is_board_valid_simple(Board bitboard)
+constexpr bool is_board_valid_simple(Board bitboard)
 {
     u64 *boards = bitboard.bitboards;
 
@@ -317,7 +317,7 @@ bool is_board_valid_simple(Board bitboard)
 // for any of the squares
 
 // TODO replace with simpler algorithm (running bitset of occupied bits)...
-bool is_board_valid(Board bitboard)
+constexpr bool is_board_valid(Board bitboard)
 {
     constexpr auto evalbits = [](u64 a, u64 b, u64 c, u64 d)
     {
@@ -346,7 +346,7 @@ bool is_board_valid(Board bitboard)
 }
 
 // bro how the heck does this work...
-u64 knight_attacks_multiple(u64 knights)
+constexpr u64 knight_attacks_multiple(u64 knights)
 {
     u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
     u64 l2 = (knights >> 2) & 0x3f3f3f3f3f3f3f3full;
