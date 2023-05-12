@@ -1,0 +1,1 @@
+clang++ main.cpp -O3 -Wall -Wpedantic -std=c++20 -march=x86-64-v4 -o athena
