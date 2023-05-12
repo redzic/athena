@@ -3,6 +3,8 @@
 #include <tuple>
 #include <cassert>
 #include <array>
+#include <bitset>
+#include <bit>
 
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
@@ -365,6 +367,39 @@ constexpr u64 rook_attacks(const u8 sqr_idx)
     return (rank >> (8 * y_idx)) ^ (file >> x_idx);
 }
 
+void print_bits(auto x)
+{
+    std::cout << std::bitset<8>(x) << '\n';
+}
+
+u8 fix_bits_rank(u8 occup, const u8 idx)
+{
+    occup &= ~((1 << 7) >> idx);
+
+    const u16 bit1 = (1 << 7) >> idx;
+
+    u8 left = occup >> (7 - idx);
+    u8 right = occup << idx;
+
+    u8 lz = std::countr_zero(left);
+    u8 rz = std::countl_zero(right);
+
+    u16 ls = (bit1 << lz);
+    ls |= ls - 1;
+
+    u16 rs = (bit1 >> rz);
+    rs = rs == 0 ? 0xff : ~(rs - 1);
+
+    u16 result = ls & rs;
+
+    return (u8)(result & 0xff);
+}
+
+u64 fix_bits_file(u64 occup, const u8 row_idx)
+{
+    return 0;
+}
+
 int main()
 {
     auto brd = Board::starting_position();
@@ -374,12 +409,44 @@ int main()
     // x = 0,1,6,7
     // need masking
 
-    const u8 x = 7;
-    const u8 y = 4;
-    const u8 idx = 8 * y + x;
+    // const u8 x = 7;
+    // const u8 y = 4;
+    // const u8 idx = 8 * y + x;
 
-    brd.wr() |= (1ull << 63) >> idx;
+    // brd.wr() |= (1ull << 63) >> idx;
 
-    auto brd1 = rook_attacks(8 * 2 + 3);
-    print_bitboard(brd1);
+    // auto brd1 = rook_attacks(8 * 2 + 3);
+    // print_bitboard(brd1);
+
+    u64 board1 = broadcast_byte(1 << 7);
+    board1 &= ~(1ull << 63);
+
+    print_bitboard(board1);
+
+    auto z = gather_every_8th_bit(board1);
+    print_bits(z);
+
+    u32 a = 0b01111100;
+    // u32 b = 0b01100010;
+    u32 b = 0b01010010;
+    // u32 b = 0;
+
+    // countr_zero - counts 0s, starting from lsb (right side,
+    // assuming msb on left and lsb on right)
+
+    std::bitset<8> result = a - b;
+
+    // std::cout << result << '\n';
+    // std::cout << "bits: " << std::countl_zero((u8)a) << '\n';
+
+    const u8 p_idx = 5;
+
+    std::cout << std::bitset<8>(fix_bits_rank(b, p_idx)) << " <- fix_bits() ret value\n";
+    std::cout << std::bitset<8>(b) << " <- occupancy map\n";
+    std::cout << std::bitset<8>((1 << 7) >> p_idx) << " <- piece idx\n";
+
+    // print_bitboard(empty);
+
+    // auto bb1 = rook_attacks2(1ull << (32 + 5), empty);
+    // print_bitboard(bb1);
 }
