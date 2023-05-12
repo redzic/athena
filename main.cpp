@@ -14,12 +14,12 @@
 
 struct Board
 {
-    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk
-    u64 bitboards[12];
+    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupied (white and black)
+    u64 bitboards[12 + 3];
 
 public:
     // returns new board of standard starting chess position
-    static Board starting_position();
+    static constexpr Board starting_position();
 
     u64 *wp() { return &bitboards[0]; }
     u64 *wn() { return &bitboards[1]; }
@@ -33,29 +33,60 @@ public:
     u64 *bb() { return &bitboards[9]; }
     u64 *bq() { return &bitboards[10]; }
     u64 *bk() { return &bitboards[11]; }
+    u64 *white() { return &bitboards[12]; }
+    u64 *black() { return &bitboards[13]; }
+    u64 *occup() { return &bitboards[14]; }
+
+    constexpr Board(
+        u64 wp,
+        u64 wn,
+        u64 wr,
+        u64 wb,
+        u64 wq,
+        u64 wk,
+        u64 bp,
+        u64 bn,
+        u64 br,
+        u64 bb,
+        u64 bq,
+        u64 bk)
+    {
+        bitboards[0] = wp;
+        bitboards[1] = wn;
+        bitboards[2] = wr;
+        bitboards[3] = wb;
+        bitboards[4] = wq;
+        bitboards[5] = wk;
+        bitboards[6] = bp;
+        bitboards[7] = bn;
+        bitboards[8] = br;
+        bitboards[9] = bb;
+        bitboards[10] = bq;
+        bitboards[11] = bk;
+        u64 white = (wp | wn | wr | wb | wq | wk);
+        u64 black = (bp | bn | br | bb | bq | bk);
+        bitboards[12] = white;
+        bitboards[13] = black;
+        bitboards[14] = white | black;
+    }
 };
 
-Board Board::starting_position()
+constexpr Board Board::starting_position()
 {
-    Board b;
+    u64 wp = (u64)((1 << 8) - 1) << 8;
+    u64 bp = (u64)((1 << 8) - 1) << (56 - 8);
+    u64 wr = (u64)0b10000001;
+    u64 br = (u64)0b10000001 << 56;
+    u64 wn = (u64)0b01000010;
+    u64 bn = (u64)0b01000010 << 56;
+    u64 wb = (u64)0b00100100;
+    u64 bb = (u64)0b00100100 << 56;
+    u64 wq = (u64)0b00010000;
+    u64 bq = (u64)0b00010000 << 56;
+    u64 wk = (u64)0b00001000;
+    u64 bk = (u64)0b00001000 << 56;
 
-    *b.wp() = (u64)((1 << 8) - 1) << 8;
-    *b.bp() = (u64)((1 << 8) - 1) << (56 - 8);
-
-    *b.wr() = (u64)0b10000001;
-    *b.br() = (u64)0b10000001 << 56;
-
-    *b.wn() = (u64)0b01000010;
-    *b.bn() = (u64)0b01000010 << 56;
-
-    *b.wb() = (u64)0b00100100;
-    *b.bb() = (u64)0b00100100 << 56;
-
-    *b.wq() = (u64)0b00010000;
-    *b.bq() = (u64)0b00010000 << 56;
-
-    *b.wk() = (u64)0b00001000;
-    *b.bk() = (u64)0b00001000 << 56;
+    Board b(wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk);
 
     return b;
 }
@@ -87,6 +118,7 @@ public:
 
 constexpr Move::Move(u8 from, u8 to, u8 tag)
 {
+    // it's saying this was not constructed/initialized?
     bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0b1111) >> 12);
 }
 
@@ -136,6 +168,8 @@ bool is_board_valid_simple(Board bitboard)
 
 // checks if there are multiple bitboards with the same bits set
 // for any of the squares
+
+// TODO replace with simpler algorithm (running bitset of occupied bits)...
 bool is_board_valid(Board bitboard)
 {
     constexpr auto evalbits = [](u64 a, u64 b, u64 c, u64 d)
