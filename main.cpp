@@ -158,16 +158,14 @@ consteval u64 knight_attack_map(const u8 sqr_idx)
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
 
-    for (auto i = 0; i < 8; i++)
+    for (const auto &[dx, dy] : knight_offsets)
     {
-        const auto tup = knight_offsets[i];
-
-        const int new_x = x_idx + std::get<0>(tup);
-        const int new_y = y_idx + std::get<1>(tup);
+        const int new_x = x_idx + dx;
+        const int new_y = y_idx + dy;
 
         if ((new_x >= 0 && new_x <= 7) && (new_y >= 0 && new_y <= 7))
         {
-            u64 sqr = (((u64)1 << 63) >> (8 * new_y)) >> new_x;
+            u64 sqr = ((1ull << 63) >> (8 * new_y)) >> new_x;
             attack_map |= sqr;
         }
     }
@@ -187,7 +185,7 @@ consteval std::array<u64, 64> build_knight_table()
     return table;
 }
 
-constexpr static const auto KNIGHT_ATTACK_TABLE = build_knight_table();
+static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 
 // assume white pieces
 
@@ -214,7 +212,7 @@ u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
     // 00000000
     // 00000000
 
-    const u64 N_ATTACK_BITS = 0b01010000'10001000'00000000'10001000'01010000'00000000'00000000'00000000;
+    constexpr u64 N_ATTACK_BITS = 0b01010000'10001000'00000000'10001000'01010000'00000000'00000000'00000000;
 
     int dist = 18 - (int)sqr_idx;
 
@@ -230,7 +228,7 @@ u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
 
     u8 x_idx = sqr_idx % 8;
 
-    const u64 FIX_OOB = 0b11110000'11110000'11110000'11110000'11110000'11110000'11110000'11110000;
+    constexpr u64 FIX_OOB = 0b11110000'11110000'11110000'11110000'11110000'11110000'11110000'11110000;
 
     if (x_idx <= 1)
     {
@@ -248,16 +246,21 @@ u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
     return attack_map;
 }
 
+consteval u64 broadcast_byte(u8 b)
+{
+    return 0x101010101010101ull * static_cast<u64>(b);
+}
+
 // assume white pieces
 u64 knight_attacks_fast(Board &brd, const u8 sqr_idx)
 {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
 
-    const u64 DUP8_BITS = 0x101010101010101;
+    constexpr u64 DUP8_BITS = 0x101010101010101;
 
-    const u64 N_ATTACK_LEFT = 0b00000010'00000100'00000000'00000100'00000010'00000000'00000000'00000000;
-    const u64 N_ATTACK_RIGHT = 0b01000000'00100000'00000000'00100000'01000000'00000000'00000000'00000000;
+    constexpr u64 N_ATTACK_LEFT = 0b00000010'00000100'00000000'00000100'00000010'00000000'00000000'00000000;
+    constexpr u64 N_ATTACK_RIGHT = 0b01000000'00100000'00000000'00100000'01000000'00000000'00000000'00000000;
 
     const u8 x = sqr_idx % 8;
     const u8 y = sqr_idx / 8;
@@ -367,7 +370,7 @@ int main()
     const u8 y = 4;
     const u8 idx = 8 * y + x;
 
-    brd.wn() |= ((u64)1 << 63) >> idx;
+    brd.wn() |= (1ull << 63) >> idx;
 
     print_bitboard(brd.wn());
 
