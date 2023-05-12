@@ -285,10 +285,8 @@ constexpr u64 knight_attacks_fast(const Board &brd, const u8 sqr_idx)
     }
 }
 
-constexpr bool is_board_valid_simple(Board bitboard)
+constexpr bool is_board_valid_simple(const Board brd)
 {
-    u64 *boards = bitboard.bitboards;
-
     for (auto i = 0; i < 64; i++)
     {
         int count = 0;
@@ -296,7 +294,7 @@ constexpr bool is_board_valid_simple(Board bitboard)
         for (auto j = 0; j < 12; j++)
         {
             // count += ((boards[j] << i) >> 63);
-            count += (boards[j] >> (63 - i)) & 1;
+            count += (brd.bitboards[j] >> (63 - i)) & 1;
         }
 
         // LLVM optimization idea: if this branch were in the
@@ -317,7 +315,7 @@ constexpr bool is_board_valid_simple(Board bitboard)
 // for any of the squares
 
 // TODO replace with simpler algorithm (running bitset of occupied bits)...
-constexpr bool is_board_valid(Board bitboard)
+constexpr bool is_board_valid(const Board brd)
 {
     constexpr auto evalbits = [](u64 a, u64 b, u64 c, u64 d)
     {
@@ -327,14 +325,12 @@ constexpr bool is_board_valid(Board bitboard)
         return std::make_tuple(a1, a2);
     };
 
-    u64 *boards = bitboard.bitboards;
-
-    auto [a1, a2] = evalbits(0, boards[0], 0, boards[1]);
-    auto [b1, b2] = evalbits(0, boards[2], 0, boards[3]);
-    auto [c1, c2] = evalbits(0, boards[4], 0, boards[5]);
-    auto [d1, d2] = evalbits(0, boards[6], 0, boards[7]);
-    auto [e1, e2] = evalbits(0, boards[8], 0, boards[9]);
-    auto [f1, f2] = evalbits(0, boards[10], 0, boards[11]);
+    auto [a1, a2] = evalbits(0, brd.bitboards[0], 0, brd.bitboards[1]);
+    auto [b1, b2] = evalbits(0, brd.bitboards[2], 0, brd.bitboards[3]);
+    auto [c1, c2] = evalbits(0, brd.bitboards[4], 0, brd.bitboards[5]);
+    auto [d1, d2] = evalbits(0, brd.bitboards[6], 0, brd.bitboards[7]);
+    auto [e1, e2] = evalbits(0, brd.bitboards[8], 0, brd.bitboards[9]);
+    auto [f1, f2] = evalbits(0, brd.bitboards[10], 0, brd.bitboards[11]);
 
     auto [x1, x2] = evalbits(a1, a2, b1, b2);
     auto [y1, y2] = evalbits(c1, c2, d1, d2);
@@ -357,6 +353,18 @@ constexpr u64 knight_attacks_multiple(const u64 knights)
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
 
+constexpr u64 rook_attacks(const u8 sqr_idx)
+{
+    // TODO make some kind of macro or function or something for this?
+    const int x_idx = sqr_idx % 8;
+    const int y_idx = sqr_idx / 8;
+
+    constexpr u64 rank = ((1ull << 8) - 1) << (64 - 8);
+    constexpr u64 file = broadcast_byte((u8)1 << 7);
+
+    return (rank >> (8 * y_idx)) ^ (file >> x_idx);
+}
+
 int main()
 {
     auto brd = Board::starting_position();
@@ -370,24 +378,8 @@ int main()
     const u8 y = 4;
     const u8 idx = 8 * y + x;
 
-    brd.wn() |= (1ull << 63) >> idx;
+    brd.wr() |= (1ull << 63) >> idx;
 
-    print_bitboard(brd.wn());
-
-    // u64 attacks = knight_attacks_fast(brd, idx);
-    u64 attacks = knight_attacks_multiple(brd.wn());
-    print_bitboard(attacks);
-    std::cout << "================================\n";
-    print_bitboard(brd.wn());
-
-    for (int idx = 0; idx < 64; idx++)
-    {
-        u64 a1 = knight_attacks(brd, idx);
-        u64 a2 = knight_attacks_bitwise(brd, idx);
-
-        print_bitboard(a1);
-        std::cout << "==========================\n";
-
-        assert(a1 == a2);
-    }
+    auto brd1 = rook_attacks(8 * 2 + 3);
+    print_bitboard(brd1);
 }
