@@ -189,13 +189,13 @@ static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 
 // assume white pieces
 
-constexpr u64 knight_attacks(Board &brd, const u8 sqr_idx)
+constexpr u64 knight_attacks(const Board &brd, const u8 sqr_idx)
 {
     return KNIGHT_ATTACK_TABLE[sqr_idx];
 }
 
 // seems best on clang since the compiled code is branchless
-constexpr u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
+constexpr u64 knight_attacks_bitwise(const Board &brd, const u8 sqr_idx)
 {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
@@ -246,13 +246,13 @@ constexpr u64 knight_attacks_bitwise(Board &brd, const u8 sqr_idx)
     return attack_map;
 }
 
-consteval u64 broadcast_byte(u8 b)
+consteval u64 broadcast_byte(const u8 b)
 {
     return 0x101010101010101ull * static_cast<u64>(b);
 }
 
 // assume white pieces
-constexpr u64 knight_attacks_fast(Board &brd, const u8 sqr_idx)
+constexpr u64 knight_attacks_fast(const Board &brd, const u8 sqr_idx)
 {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
@@ -346,7 +346,7 @@ constexpr bool is_board_valid(Board bitboard)
 }
 
 // bro how the heck does this work...
-constexpr u64 knight_attacks_multiple(u64 knights)
+constexpr u64 knight_attacks_multiple(const u64 knights)
 {
     u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
     u64 l2 = (knights >> 2) & 0x3f3f3f3f3f3f3f3full;
