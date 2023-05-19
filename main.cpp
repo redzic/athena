@@ -1,11 +1,13 @@
-#include <iostream>
-#include <cstdint>
-#include <tuple>
-#include <cassert>
+#include <algorithm>
 #include <array>
-#include <bitset>
 #include <bit>
+#include <bitset>
+#include <cassert>
+#include <cstdint>
+#include <cstring>
 #include <immintrin.h>
+#include <iostream>
+#include <tuple>
 
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
@@ -17,53 +19,41 @@ using i32 = std::int32_t;
 using i16 = std::int16_t;
 using i8 = std::int8_t;
 
-enum PieceColor
-{
-    White = 0,
-    Black = 1
-};
+constexpr u64 msb = (1ull << 63);
 
-struct Board
-{
-    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupied (white and black)
+enum PieceColor : u8 { White = 0, Black = 1 };
+
+enum Square : u8 { wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty };
+
+struct Board {
+    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupied
+    // (white and black)
     u64 bitboards[12 + 3];
 
-public:
+  public:
     // returns new board of standard starting chess position
     static constexpr Board starting_position();
 
     // TODO somehow figure out const version
 
-    constexpr u64 &wp() { return bitboards[0]; }
-    constexpr u64 &wn() { return bitboards[1]; }
-    constexpr u64 &wr() { return bitboards[2]; }
-    constexpr u64 &wb() { return bitboards[3]; }
-    constexpr u64 &wq() { return bitboards[4]; }
-    constexpr u64 &wk() { return bitboards[5]; }
-    constexpr u64 &bp() { return bitboards[6]; }
-    constexpr u64 &bn() { return bitboards[7]; }
-    constexpr u64 &br() { return bitboards[8]; }
-    constexpr u64 &bb() { return bitboards[9]; }
-    constexpr u64 &bq() { return bitboards[10]; }
-    constexpr u64 &bk() { return bitboards[11]; }
-    constexpr u64 &white() { return bitboards[12]; }
-    constexpr u64 &black() { return bitboards[13]; }
-    constexpr u64 &occup() { return bitboards[14]; }
+    constexpr u64& wp() { return bitboards[0]; }
+    constexpr u64& wn() { return bitboards[1]; }
+    constexpr u64& wr() { return bitboards[2]; }
+    constexpr u64& wb() { return bitboards[3]; }
+    constexpr u64& wq() { return bitboards[4]; }
+    constexpr u64& wk() { return bitboards[5]; }
+    constexpr u64& bp() { return bitboards[6]; }
+    constexpr u64& bn() { return bitboards[7]; }
+    constexpr u64& br() { return bitboards[8]; }
+    constexpr u64& bb() { return bitboards[9]; }
+    constexpr u64& bq() { return bitboards[10]; }
+    constexpr u64& bk() { return bitboards[11]; }
+    constexpr u64& white() { return bitboards[12]; }
+    constexpr u64& black() { return bitboards[13]; }
+    constexpr u64& occup() { return bitboards[14]; }
 
-    constexpr Board(
-        u64 wp,
-        u64 wn,
-        u64 wr,
-        u64 wb,
-        u64 wq,
-        u64 wk,
-        u64 bp,
-        u64 bn,
-        u64 br,
-        u64 bb,
-        u64 bq,
-        u64 bk)
-    {
+    constexpr Board(u64 wp, u64 wn, u64 wr, u64 wb, u64 wq, u64 wk, u64 bp,
+                    u64 bn, u64 br, u64 bb, u64 bq, u64 bk) {
         bitboards[0] = wp;
         bitboards[1] = wn;
         bitboards[2] = wr;
@@ -84,8 +74,7 @@ public:
     }
 };
 
-constexpr Board Board::starting_position()
-{
+constexpr Board Board::starting_position() {
     u64 wp = ((1ull << 8) - 1) << 8;
     u64 bp = ((1ull << 8) - 1) << (56 - 8);
     u64 wr = 0b10000001ull;
@@ -106,11 +95,10 @@ constexpr Board Board::starting_position()
 
 constexpr u8 MASK6 = (1 << 6) - 1;
 
-struct Move
-{
+struct Move {
     u16 bits;
 
-public:
+  public:
     constexpr u8 from_idx() { return bits & MASK6; }
     constexpr u8 to_idx() { return (bits << 6) & MASK6; }
     constexpr u8 tag_bits() { return (bits << 12); }
@@ -118,18 +106,79 @@ public:
     constexpr Move(u8 from, u8 to, u8 tag);
 };
 
-constexpr Move::Move(u8 from, u8 to, u8 tag)
-{
+constexpr Move::Move(u8 from, u8 to, u8 tag) {
     // it's saying this was not constructed/initialized?
     bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0b1111) >> 12);
 }
 
-void print_bitboard(u64 bitboard)
-{
-    for (auto i = 0; i < 8; i++)
-    {
-        for (auto j = 0; j < 8; j++)
-        {
+void print_board(const Board& brd) {
+    std::array<Square, 64> array_brd;
+    std::fill(array_brd.begin(), array_brd.end(), Square::Empty);
+
+    // 8 spaces + 9 bars + 1 newline character
+    constexpr auto ROW_LEN = 8 + 9 + 1;
+    constexpr auto NUM_CHARS = ROW_LEN * (8 + 9);
+
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+    // | | | | | | | | |
+    // +-+-+-+-+-+-+-+-+
+
+    std::array<char, NUM_CHARS> board_str;
+
+    static constexpr std::string_view str_row =
+        "+-+-+-+-+-+-+-+-+\n| | | | | | | | |\n";
+
+    static_assert(str_row.size() == (2 * ROW_LEN));
+
+    for (auto i = 0; i < 8; i++) {
+        std::memcpy(board_str.data() + (i * str_row.size()), str_row.data(),
+                    str_row.size() * sizeof(char));
+    }
+    std::memcpy(board_str.data() + (8 * str_row.size()), str_row.data(),
+                ROW_LEN * sizeof(char));
+
+    for (auto i = 0; i < 12; i++) {
+        // do simple way for now
+        // TODO figure out how to do bit loop later with lzcnt or whatever
+        for (auto j = 0; j < 64; j++) {
+            // TODO check if this is better to do branchless (maybe not though)
+            if (brd.bitboards[i] & (msb >> j)) {
+                array_brd[j] = static_cast<Square>(i);
+            }
+        }
+    }
+
+    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty
+    constexpr static std::array<char, 13> char_piece_lookup{
+        'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
+
+    for (auto i = 0; i < 64; i++) {
+        auto y_idx = 1 + 2 * (i / 8);
+        auto x_idx = 1 + 2 * (i % 8);
+
+        board_str[ROW_LEN * y_idx + x_idx] = char_piece_lookup[array_brd[i]];
+    }
+
+    std::cout << std::string_view(board_str.data(), NUM_CHARS);
+}
+
+void print_bitboard(u64 bitboard) {
+    for (auto i = 0; i < 8; i++) {
+        for (auto j = 0; j < 8; j++) {
             auto bit = ((bitboard << j) >> 63) & 1;
             putchar('0' + bit);
             // if (j != 7)
@@ -143,31 +192,21 @@ void print_bitboard(u64 bitboard)
 }
 
 // simple but slow implementation, only used to build table at compile-time
-consteval u64 knight_attack_map(const u8 sqr_idx)
-{
+consteval u64 knight_attack_map(const u8 sqr_idx) {
     u64 attack_map = 0;
 
     const std::tuple<int, int> knight_offsets[8] = {
-        {1, 2},
-        {2, 1},
-        {-1, 2},
-        {-2, 1},
-        {1, -2},
-        {2, -1},
-        {-1, -2},
-        {-2, -1},
+        {1, 2}, {2, 1}, {-1, 2}, {-2, 1}, {1, -2}, {2, -1}, {-1, -2}, {-2, -1},
     };
 
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
 
-    for (const auto &[dx, dy] : knight_offsets)
-    {
+    for (const auto& [dx, dy] : knight_offsets) {
         const int new_x = x_idx + dx;
         const int new_y = y_idx + dy;
 
-        if ((new_x >= 0 && new_x <= 7) && (new_y >= 0 && new_y <= 7))
-        {
+        if ((new_x >= 0 && new_x <= 7) && (new_y >= 0 && new_y <= 7)) {
             u64 sqr = ((1ull << 63) >> (8 * new_y)) >> new_x;
             attack_map |= sqr;
         }
@@ -176,12 +215,10 @@ consteval u64 knight_attack_map(const u8 sqr_idx)
     return attack_map;
 }
 
-consteval std::array<u64, 64> build_knight_table()
-{
+consteval std::array<u64, 64> build_knight_table() {
     std::array<u64, 64> table;
 
-    for (auto i = 0; i < 64; i++)
-    {
+    for (auto i = 0; i < 64; i++) {
         table[i] = knight_attack_map(i);
     }
 
@@ -192,14 +229,12 @@ static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 
 // assume white pieces
 
-constexpr u64 knight_attacks(const Board &brd, const u8 sqr_idx)
-{
+constexpr u64 knight_attacks(const Board& brd, const u8 sqr_idx) {
     return KNIGHT_ATTACK_TABLE[sqr_idx];
 }
 
 // seems best on clang since the compiled code is branchless
-constexpr u64 knight_attacks_bitwise(const Board &brd, const u8 sqr_idx)
-{
+constexpr u64 knight_attacks_bitwise(const Board& brd, const u8 sqr_idx) {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
     u64 attack_map = 0;
@@ -215,30 +250,26 @@ constexpr u64 knight_attacks_bitwise(const Board &brd, const u8 sqr_idx)
     // 00000000
     // 00000000
 
-    constexpr u64 N_ATTACK_BITS = 0b01010000'10001000'00000000'10001000'01010000'00000000'00000000'00000000;
+    constexpr u64 N_ATTACK_BITS =
+        0b01010000'10001000'00000000'10001000'01010000'00000000'00000000'00000000;
 
     int dist = 18 - (int)sqr_idx;
 
     // i.e. center > sqr_idx
-    if (dist > 0)
-    {
+    if (dist > 0) {
         attack_map = N_ATTACK_BITS << dist;
-    }
-    else
-    {
+    } else {
         attack_map = N_ATTACK_BITS >> (-dist);
     }
 
     u8 x_idx = sqr_idx % 8;
 
-    constexpr u64 FIX_OOB = 0b11110000'11110000'11110000'11110000'11110000'11110000'11110000'11110000;
+    constexpr u64 FIX_OOB =
+        0b11110000'11110000'11110000'11110000'11110000'11110000'11110000'11110000;
 
-    if (x_idx <= 1)
-    {
+    if (x_idx <= 1) {
         attack_map &= FIX_OOB;
-    }
-    else if (x_idx >= 6)
-    {
+    } else if (x_idx >= 6) {
         attack_map &= FIX_OOB >> 4;
     }
 
@@ -249,21 +280,21 @@ constexpr u64 knight_attacks_bitwise(const Board &brd, const u8 sqr_idx)
     return attack_map;
 }
 
-consteval u64 broadcast_byte(const u8 b)
-{
+consteval u64 broadcast_byte(const u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
 }
 
 // assume white pieces
-constexpr u64 knight_attacks_fast(const Board &brd, const u8 sqr_idx)
-{
+constexpr u64 knight_attacks_fast(const Board& brd, const u8 sqr_idx) {
     // TODO figure out how to make debug assert in C++
     // debug_assert(sqr_idx <= 63);
 
     constexpr u64 DUP8_BITS = 0x101010101010101;
 
-    constexpr u64 N_ATTACK_LEFT = 0b00000010'00000100'00000000'00000100'00000010'00000000'00000000'00000000;
-    constexpr u64 N_ATTACK_RIGHT = 0b01000000'00100000'00000000'00100000'01000000'00000000'00000000'00000000;
+    constexpr u64 N_ATTACK_LEFT =
+        0b00000010'00000100'00000000'00000100'00000010'00000000'00000000'00000000;
+    constexpr u64 N_ATTACK_RIGHT =
+        0b01000000'00100000'00000000'00100000'01000000'00000000'00000000'00000000;
 
     const u8 x = sqr_idx % 8;
     const u8 y = sqr_idx / 8;
@@ -278,24 +309,18 @@ constexpr u64 knight_attacks_fast(const Board &brd, const u8 sqr_idx)
 
     u64 attacks = left_side | right_side;
 
-    if (y <= 1)
-    {
+    if (y <= 1) {
         return attacks << (8 * (2 - y));
-    }
-    else
-    {
+    } else {
         return attacks >> (8 * (y - 2));
     }
 }
 
-constexpr bool is_board_valid_simple(const Board brd)
-{
-    for (auto i = 0; i < 64; i++)
-    {
+constexpr bool is_board_valid_simple(const Board brd) {
+    for (auto i = 0; i < 64; i++) {
         int count = 0;
 
-        for (auto j = 0; j < 12; j++)
-        {
+        for (auto j = 0; j < 12; j++) {
             // count += ((boards[j] << i) >> 63);
             count += (brd.bitboards[j] >> (63 - i)) & 1;
         }
@@ -305,8 +330,7 @@ constexpr bool is_board_valid_simple(const Board brd)
         // do the same thing, but autovectorization would not be
         // possible. Some heursitics could possibly be used to
         // judge whether or not the early-exits would be worth it.
-        if (count > 1)
-        {
+        if (count > 1) {
             return false;
         }
     }
@@ -318,10 +342,8 @@ constexpr bool is_board_valid_simple(const Board brd)
 // for any of the squares
 
 // TODO replace with simpler algorithm (running bitset of occupied bits)...
-constexpr bool is_board_valid(const Board brd)
-{
-    constexpr auto evalbits = [](u64 a, u64 b, u64 c, u64 d)
-    {
+constexpr bool is_board_valid(const Board brd) {
+    constexpr auto evalbits = [](u64 a, u64 b, u64 c, u64 d) {
         u64 a1 = c | (a & b) | (a & d) | (b & d);
         u64 a2 = a | b | d;
 
@@ -345,8 +367,7 @@ constexpr bool is_board_valid(const Board brd)
 }
 
 // bro how the heck does this work...
-constexpr u64 knight_attacks_multiple(const u64 knights)
-{
+constexpr u64 knight_attacks_multiple(const u64 knights) {
     u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
     u64 l2 = (knights >> 2) & 0x3f3f3f3f3f3f3f3full;
     u64 r1 = (knights << 1) & 0xfefefefefefefefeull;
@@ -356,8 +377,7 @@ constexpr u64 knight_attacks_multiple(const u64 knights)
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
 
-constexpr u64 rook_attacks(const u8 sqr_idx)
-{
+constexpr u64 rook_attacks(const u8 sqr_idx) {
     // TODO make some kind of macro or function or something for this?
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
@@ -368,13 +388,9 @@ constexpr u64 rook_attacks(const u8 sqr_idx)
     return (rank >> (8 * y_idx)) ^ (file >> x_idx);
 }
 
-void print_bits(auto x)
-{
-    std::cout << std::bitset<8>(x) << '\n';
-}
+void print_bits(auto x) { std::cout << std::bitset<8>(x) << '\n'; }
 
-u8 fix_bits_rank(u8 occup, const u8 idx)
-{
+u8 fix_bits_rank(u8 occup, const u8 idx) {
     occup &= ~((1 << 7) >> idx);
 
     const u16 bit1 = (1 << 7) >> idx;
@@ -396,19 +412,12 @@ u8 fix_bits_rank(u8 occup, const u8 idx)
     return (u8)(result & 0xff);
 }
 
-u64 ext8bits(u64 x)
-{
-    return _pext_u64(x, broadcast_byte(1 << 7));
-}
+u64 ext8bits(u64 x) { return _pext_u64(x, broadcast_byte(1 << 7)); }
 
-u64 dep8bits(u64 x)
-{
-    return _pdep_u64(x, broadcast_byte(1 << 7));
-}
+u64 dep8bits(u64 x) { return _pdep_u64(x, broadcast_byte(1 << 7)); }
 
 // row_idx is 0-7
-u64 fix_bits_file(u64 occup, const u8 sqr_idx)
-{
+u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
     const u8 x_idx = sqr_idx % 8;
     const u8 y_idx = sqr_idx / 8;
 
@@ -418,18 +427,66 @@ u64 fix_bits_file(u64 occup, const u8 sqr_idx)
     return dep8bits(fix_bits_rank(file1, y_idx)) >> x_idx;
 }
 
-constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept
-{
+constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
     const u8 x_idx = sqr_idx % 8;
     const u8 y_idx = sqr_idx / 8;
 
     const u8 shift = 8 * (7 - y_idx);
-    return ((u64)(fix_bits_rank(occup >> shift, x_idx)) << shift) ^ fix_bits_file(occup, sqr_idx);
+    return ((u64)(fix_bits_rank(occup >> shift, x_idx)) << shift) ^
+           fix_bits_file(occup, sqr_idx);
 }
 
-int main(int argc, char **argv)
-{
-    // auto brd = Board::starting_position();
+// constexpr u64 bishop_attacks_basic(const u8 sqr_idx) noexcept
+// {
+//     // auto inbounds = []
+
+//     return 0;
+// }
+
+// ngl I kinda wanna just simd this function...
+
+// make white knight move
+// will generalize to all applicable moves types later
+constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
+    const u64 mask_unset_old = ~(msb >> from_idx);
+    // unset bit (from square)
+    // might be possible to SIMD this
+    brd.wn() &= mask_unset_old;
+    brd.white() &= mask_unset_old;
+    brd.occup() &= mask_unset_old;
+
+    // unset bit
+    brd.black() &= mask_unset_old;
+    // need to do search now to figure out what piece that was
+
+    // search bitboard index [6, 11]
+
+    const u64 new_knight = msb >> to_idx;
+    brd.wn() |= new_knight;
+    brd.white() |= new_knight;
+    brd.occup() |= new_knight;
+
+    // TODO simd?
+    u64 b1 = ((brd.bitboards[6] & new_knight) << to_idx) >> 63;
+    u64 b2 = ((brd.bitboards[7] & new_knight) << to_idx) >> 63;
+    u64 b3 = ((brd.bitboards[8] & new_knight) << to_idx) >> 63;
+    u64 b4 = ((brd.bitboards[9] & new_knight) << to_idx) >> 63;
+    u64 b5 = ((brd.bitboards[10] & new_knight) << to_idx) >> 63;
+    u64 b6 = ((brd.bitboards[11] & new_knight) << to_idx) >> 63;
+
+    // movemask simd? idk...
+
+    u64 bits = b1 | (b2 << 1) | (b3 << 2) | (b4 << 3) | (b5 << 4) | (b6 << 5);
+    // TODO fix OOB access when bits == 0
+    // auto idx = std::countr_zero(bits);
+
+    // I think this works? although not guaranteed branchless...
+    auto idx = bits == 0 ? 8 : std::countr_zero(bits);
+    brd.bitboards[6 + idx] &= mask_unset_old;
+}
+
+int main(int argc, char** argv) {
+    auto brd = Board::starting_position();
     // TODO make this ((u64)1 << 63) thing a constant
     // like a1, b1, c1, ...
 
@@ -439,21 +496,21 @@ int main(int argc, char **argv)
     // const u8 x = 7;
     // const u8 y = 4;
     // const u8 idx = 8 * y + x;
-    const u8 idx = 12;
+    // const u8 idx = 12;
 
     // brd.wr() |= (1ull << 63) >> idx;
 
     // auto brd1 = rook_attacks(8 * 2 + 3);
     // print_bitboard(brd1);
 
-    u64 board1 = 0;
-    board1 |= (1ull << 63) >> idx;
+    // u64 board1 = 0;
+    // board1 |= (1ull << 63) >> idx;
 
-    board1 |= board1 >> 16;
+    // board1 |= board1 >> 16;
 
-    // print_bitboard(board1);
-    // print_bitboard(fix_bits_file(board1, idx));
-    print_bitboard(rook_attacks_fixed(0, idx));
+    // // print_bitboard(board1);
+    // // print_bitboard(fix_bits_file(board1, idx));
+    // print_bitboard(rook_attacks_fixed(0, idx));
 
     // print_bits((u8)ext8bits(board1));
     // std::cout << gather_8(board1) << '\n';
@@ -473,12 +530,17 @@ int main(int argc, char **argv)
 
     // const u8 p_idx = 5;
 
-    // std::cout << std::bitset<8>(fix_bits_rank(b, p_idx)) << " <- fix_bits() ret value\n";
-    // std::cout << std::bitset<8>(b) << " <- occupancy map\n";
+    // std::cout << std::bitset<8>(fix_bits_rank(b, p_idx)) << " <- fix_bits()
+    // ret value\n"; std::cout << std::bitset<8>(b) << " <- occupancy map\n";
     // std::cout << std::bitset<8>((1 << 7) >> p_idx) << " <- piece idx\n";
 
     // print_bitboard(empty);
 
     // auto bb1 = rook_attacks2(1ull << (32 + 5), empty);
     // print_bitboard(bb1);
+
+    // std::string_view x{"1"};
+    // std::cout << "length: " << x.size() << '\n';
+
+    print_board(brd);
 }
