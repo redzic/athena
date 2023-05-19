@@ -448,18 +448,50 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
            fix_bits_file(occup, sqr_idx);
 }
 
-// constexpr u64 bishop_attacks_basic(const u8 sqr_idx) noexcept
-// {
-//     // auto inbounds = []
+void make_wn_move_avx(Board& brd, const u8 from_idx, const u8 to_idx) {
+    const u64 mask_unset_old = ~(msb >> from_idx);
+    // unset bit (from square)
+    // might be possible to SIMD this
 
-//     return 0;
-// }
+    // const auto mask1 = _mm256_setr_epi64x(~0ull, mask_unset_old,
+    // mask_unset_old,
+    //                                       mask_unset_old);
 
-// ngl I kinda wanna just simd this function...
+    // no gain from simd here it seems
+    // registers are just too far apart in memory and not enough ands/ors are
+    // being done to justify simd for this part
+
+    brd.wn() &= mask_unset_old;
+
+    brd.white() &= mask_unset_old;
+    brd.occup() &= mask_unset_old;
+
+    // unset bit
+    brd.black() &= mask_unset_old;
+
+    const u64 new_knight = msb >> to_idx;
+    brd.wn() |= new_knight;
+    brd.white() |= new_knight;
+    brd.occup() |= new_knight;
+
+    const auto bbs = _mm256_loadu_si256((__m256i*)(&brd.bitboards[6]));
+    const auto new_knights = _mm256_set1_epi64x(new_knight);
+
+    u32 mask = (u32)_mm256_movemask_pd(static_cast<__m256d>(_mm256_cmpeq_epi64(
+                   _mm256_and_si256(bbs, new_knights), new_knights))) &
+               (u32)MASK6;
+
+    // I think this works? although not guaranteed branchless...
+    auto idx = mask == 0 ? 14 : 6 + std::countr_zero(mask);
+
+    brd.bitboards[idx] &= ~new_knight;
+}
 
 // make white knight move
 // will generalize to all applicable moves types later
 constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
+    // TODO maybe add debug_asserts to check for self-capture
+
     const u64 mask_unset_old = ~(msb >> from_idx);
     // unset bit (from square)
     // might be possible to SIMD this
@@ -495,22 +527,22 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // I think this works? although not guaranteed branchless...
     auto idx = bits == 0 ? 8 : std::countr_zero(bits);
 
-    // std::cout <<
-
     brd.bitboards[6 + idx] &= ~new_knight;
 }
 
 int main(int argc, char** argv) {
     auto brd = Board::starting_position();
 
-    brd.wn() |= msb >> 30;
+    const auto n_idx = 30;
+
+    brd.wn() |= msb >> n_idx;
     assert(is_board_valid(brd));
 
     // print_board(brd);
 
-    make_wn_move(brd, 30, 30 - 17);
+    make_wn_move_avx(brd, n_idx, n_idx - 17);
 
     assert(is_board_valid_debug(brd));
 
-    // print_bitboard(brd.wn());
+    print_board(brd);
 }
