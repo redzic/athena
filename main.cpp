@@ -25,6 +25,9 @@ enum PieceColor : u8 { White = 0, Black = 1 };
 
 enum Square : u8 { wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty };
 
+constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
+    'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
+
 struct Board {
     // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupied
     // (white and black)
@@ -162,15 +165,11 @@ void print_board(const Board& brd) {
         }
     }
 
-    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty
-    constexpr static std::array<char, 13> char_piece_lookup{
-        'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
-
     for (auto i = 0; i < 64; i++) {
         auto y_idx = 1 + 2 * (i / 8);
         auto x_idx = 1 + 2 * (i % 8);
 
-        board_str[ROW_LEN * y_idx + x_idx] = char_piece_lookup[array_brd[i]];
+        board_str[ROW_LEN * y_idx + x_idx] = CHAR_PIECE_LOOKUP[array_brd[i]];
     }
 
     std::cout << std::string_view(board_str.data(), NUM_CHARS);
@@ -316,26 +315,36 @@ constexpr u64 knight_attacks_fast(const Board& brd, const u8 sqr_idx) {
     }
 }
 
-constexpr bool is_board_valid_simple(const Board brd) {
+constexpr bool is_board_valid_debug(const Board brd) {
+    auto is_valid = true;
+
     for (auto i = 0; i < 64; i++) {
         int count = 0;
 
+        // TODO maybe make separate PieceType?
+        // so that it does not have empty value...
+        // or maybe that's unnecessary.
+        Square dupes[12];
+
         for (auto j = 0; j < 12; j++) {
-            // count += ((boards[j] << i) >> 63);
-            count += (brd.bitboards[j] >> (63 - i)) & 1;
+            // count += (brd.bitboards[j] >> (63 - i)) & 1;
+            if ((brd.bitboards[j] >> (63 - i)) & 1) {
+                dupes[count++] = static_cast<Square>(j);
+            }
         }
 
-        // LLVM optimization idea: if this branch were in the
-        // middle of the for loop, the code would still ultimately
-        // do the same thing, but autovectorization would not be
-        // possible. Some heursitics could possibly be used to
-        // judge whether or not the early-exits would be worth it.
         if (count > 1) {
-            return false;
+            is_valid = false;
+
+            std::cout << "Square index " << i << " contains duplicates: ";
+            for (auto k = 0; k < count; k++) {
+                std::cout << CHAR_PIECE_LOOKUP[dupes[k]] << ", ";
+            }
+            std::cout << '\n';
         }
     }
 
-    return true;
+    return is_valid;
 }
 
 // checks if there are multiple bitboards with the same bits set
@@ -488,5 +497,16 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
 int main(int argc, char** argv) {
     auto brd = Board::starting_position();
 
-    print_board(brd);
+    brd.wn() |= msb >> 30;
+    assert(is_board_valid(brd));
+
+    // print_board(brd);
+
+    make_wn_move(brd, 30, 30 - 17);
+
+    // not valid :(
+
+    assert(is_board_valid_debug(brd));
+
+    // print_bitboard(brd.wn());
 }
