@@ -149,10 +149,10 @@ void print_board(const Board& brd) {
 
     for (auto i = 0; i < 8; i++) {
         std::memcpy(board_str.data() + (i * str_row.size()), str_row.data(),
-                    str_row.size() * sizeof(char));
+                    str_row.size());
     }
     std::memcpy(board_str.data() + (8 * str_row.size()), str_row.data(),
-                ROW_LEN * sizeof(char));
+                ROW_LEN);
 
     for (auto i = 0; i < 12; i++) {
         // do simple way for now
