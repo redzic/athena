@@ -487,60 +487,6 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
 
 int main(int argc, char** argv) {
     auto brd = Board::starting_position();
-    // TODO make this ((u64)1 << 63) thing a constant
-    // like a1, b1, c1, ...
-
-    // x = 0,1,6,7
-    // need masking
-
-    // const u8 x = 7;
-    // const u8 y = 4;
-    // const u8 idx = 8 * y + x;
-    // const u8 idx = 12;
-
-    // brd.wr() |= (1ull << 63) >> idx;
-
-    // auto brd1 = rook_attacks(8 * 2 + 3);
-    // print_bitboard(brd1);
-
-    // u64 board1 = 0;
-    // board1 |= (1ull << 63) >> idx;
-
-    // board1 |= board1 >> 16;
-
-    // // print_bitboard(board1);
-    // // print_bitboard(fix_bits_file(board1, idx));
-    // print_bitboard(rook_attacks_fixed(0, idx));
-
-    // print_bits((u8)ext8bits(board1));
-    // std::cout << gather_8(board1) << '\n';
-
-    // u32 a = 0b01111100;
-    // u32 b = 0b01100010;
-    // u32 b = 0b01010010;
-    // u32 b = 0;
-
-    // countr_zero - counts 0s, starting from lsb (right side,
-    // assuming msb on left and lsb on right)
-
-    // std::bitset<8> result = a - b;
-
-    // std::cout << result << '\n';
-    // std::cout << "bits: " << std::countl_zero((u8)a) << '\n';
-
-    // const u8 p_idx = 5;
-
-    // std::cout << std::bitset<8>(fix_bits_rank(b, p_idx)) << " <- fix_bits()
-    // ret value\n"; std::cout << std::bitset<8>(b) << " <- occupancy map\n";
-    // std::cout << std::bitset<8>((1 << 7) >> p_idx) << " <- piece idx\n";
-
-    // print_bitboard(empty);
-
-    // auto bb1 = rook_attacks2(1ull << (32 + 5), empty);
-    // print_bitboard(bb1);
-
-    // std::string_view x{"1"};
-    // std::cout << "length: " << x.size() << '\n';
 
     print_board(brd);
 }
