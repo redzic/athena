@@ -494,7 +494,10 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
 
     // I think this works? although not guaranteed branchless...
     auto idx = bits == 0 ? 8 : std::countr_zero(bits);
-    brd.bitboards[6 + idx] &= mask_unset_old;
+
+    // std::cout <<
+
+    brd.bitboards[6 + idx] &= ~new_knight;
 }
 
 int main(int argc, char** argv) {
@@ -506,8 +509,6 @@ int main(int argc, char** argv) {
     // print_board(brd);
 
     make_wn_move(brd, 30, 30 - 17);
-
-    // not valid :(
 
     assert(is_board_valid_debug(brd));
 
