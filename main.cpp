@@ -157,11 +157,23 @@ void print_board(const Board& brd) {
     for (auto i = 0; i < 12; i++) {
         // do simple way for now
         // TODO figure out how to do bit loop later with lzcnt or whatever
-        for (auto j = 0; j < 64; j++) {
-            // TODO check if this is better to do branchless (maybe not though)
-            if (brd.bitboards[i] & (msb >> j)) {
-                array_brd[j] = static_cast<Square>(i);
-            }
+        // for (auto j = 0; j < 64; j++) {
+        //     // TODO check if this is better to do branchless (maybe not
+        //     though)
+
+        //     if (brd.bitboards[i] & (msb >> j)) {
+        //         array_brd[j] = static_cast<Square>(i);
+        //     }
+        // }
+
+        // TODO figure out how to move this into its own iterator
+        // preferably with zero-cost abstraction
+        for (auto bb = brd.bitboards[i]; bb;) {
+            const auto lzcnt = std::countl_zero(bb);
+
+            array_brd[lzcnt] = static_cast<Square>(i);
+
+            bb &= ~(msb >> lzcnt);
         }
     }
 
@@ -321,6 +333,8 @@ constexpr bool is_board_valid_debug(const Board brd) {
     for (auto i = 0; i < 64; i++) {
         int count = 0;
 
+        // yep I guess compiler already automatically reuses the allocation
+
         // TODO maybe make separate PieceType?
         // so that it does not have empty value...
         // or maybe that's unnecessary.
@@ -402,6 +416,17 @@ constexpr u64 rook_attacks(const u8 sqr_idx) {
 
 void print_bits(auto x) { std::cout << std::bitset<8>(x) << '\n'; }
 
+void bit_loop(u64 bits) {
+    while (bits) {
+        const auto lzcnt = std::countl_zero(bits);
+
+        // use lzcnt (index) here
+        std::cout << lzcnt << '\n';
+
+        bits &= ~(msb >> lzcnt);
+    }
+}
+
 u8 fix_bits_rank(u8 occup, const u8 idx) {
     occup &= ~((1 << 7) >> idx);
 
@@ -477,6 +502,13 @@ void make_wn_move_avx(Board& brd, const u8 from_idx, const u8 to_idx) {
     const auto bbs = _mm256_loadu_si256((__m256i*)(&brd.bitboards[6]));
     const auto new_knights = _mm256_set1_epi64x(new_knight);
 
+    // gcc doesn't like static_cast
+    // maybe it should be reinterpret_cast instead?
+
+    // Also maybe this doesn't work because I think it might extract each
+    // qword into 2 bits... (i.e. 1 dword = 1 bit)
+
+    // TODO write tests for this function
     u32 mask = (u32)_mm256_movemask_pd(static_cast<__m256d>(_mm256_cmpeq_epi64(
                    _mm256_and_si256(bbs, new_knights), new_knights))) &
                (u32)MASK6;
@@ -535,14 +567,18 @@ int main(int argc, char** argv) {
 
     const auto n_idx = 30;
 
-    brd.wn() |= msb >> n_idx;
+    // brd.wn() |= msb >> n_idx;
     assert(is_board_valid(brd));
 
     // print_board(brd);
 
-    make_wn_move_avx(brd, n_idx, n_idx - 17);
+    // make_wn_move_avx(brd, n_idx, n_idx - 17);
 
-    assert(is_board_valid_debug(brd));
+    // assert(is_board_valid_debug(brd));
 
+    // print_board(brd);
+
+    // print_bitboard(brd.wn());
     print_board(brd);
+    bit_loop(brd.wn());
 }
