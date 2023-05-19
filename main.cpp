@@ -338,7 +338,10 @@ constexpr bool is_board_valid_debug(const Board brd) {
 
             std::cout << "Square index " << i << " contains duplicates: ";
             for (auto k = 0; k < count; k++) {
-                std::cout << CHAR_PIECE_LOOKUP[dupes[k]] << ", ";
+                std::cout << CHAR_PIECE_LOOKUP[dupes[k]];
+                if (k != (count - 1)) {
+                    std::cout << ", ";
+                }
             }
             std::cout << '\n';
         }
