@@ -5,8 +5,6 @@
 int main(int argc, char** argv) {
     auto brd = Board::starting_position();
 
-    const auto n_idx = 30;
-
     // brd.wn() |= msb >> n_idx;
     assert(is_board_valid(brd));
 
