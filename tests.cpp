@@ -66,13 +66,13 @@ Board random_board() {
 }
 
 int main(int argc, char** argv) {
-    // while (1) {
-    auto brd = random_board();
+    while (1) {
+        auto brd = random_board();
 
-    assert(is_board_valid_debug(brd));
+        assert(is_board_valid_debug(brd));
 
-    // print_bitboard(brd.wn());
-    print_board(brd);
-    bit_loop(brd.wn());
-    // }
+        // print_bitboard(brd.wn());
+        print_board(brd);
+        bit_loop(brd.wn());
+    }
 }
