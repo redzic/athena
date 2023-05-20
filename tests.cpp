@@ -2,7 +2,7 @@
 #include <cassert>
 #include <iostream>
 
-int main(int argc, char** argv) {
+int main() {
     auto brd = Board::starting_position();
 
     const auto n_idx = 30;

@@ -1,0 +1,1 @@
+clang++ -std=c++20 tests.cpp -Og -Wall -Wpedantic -march=x86-64-v4 -o tests && .\tests.exe
