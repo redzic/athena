@@ -25,6 +25,8 @@ enum PieceColor : u8 { White = 0, Black = 1 };
 
 enum Square : u8 { wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty };
 
+bool is_pawn(Square sqr) { return sqr == Square::wp || sqr == Square::bp; }
+
 constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
     'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
 
@@ -473,6 +475,8 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
            fix_bits_file(occup, sqr_idx);
 }
 
+//
+
 void make_wn_move_avx(Board& brd, const u8 from_idx, const u8 to_idx) {
     const u64 mask_unset_old = ~(msb >> from_idx);
     // unset bit (from square)
@@ -483,8 +487,8 @@ void make_wn_move_avx(Board& brd, const u8 from_idx, const u8 to_idx) {
     //                                       mask_unset_old);
 
     // no gain from simd here it seems
-    // registers are just too far apart in memory and not enough ands/ors are
-    // being done to justify simd for this part
+    // registers are just too far apart in memory and not enough ands/ors
+    // are being done to justify simd for this part
 
     brd.wn() &= mask_unset_old;
 
@@ -509,9 +513,10 @@ void make_wn_move_avx(Board& brd, const u8 from_idx, const u8 to_idx) {
     // qword into 2 bits... (i.e. 1 dword = 1 bit)
 
     // TODO write tests for this function
-    u32 mask = (u32)_mm256_movemask_pd(static_cast<__m256d>(_mm256_cmpeq_epi64(
-                   _mm256_and_si256(bbs, new_knights), new_knights))) &
-               (u32)MASK6;
+    u32 mask =
+        (u32)_mm256_movemask_pd(reinterpret_cast<__m256d>(_mm256_cmpeq_epi64(
+            _mm256_and_si256(bbs, new_knights), new_knights))) &
+        (u32)MASK6;
 
     // I think this works? although not guaranteed branchless...
     auto idx = mask == 0 ? 14 : 6 + std::countr_zero(mask);

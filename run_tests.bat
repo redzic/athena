@@ -1,1 +1,1 @@
-clang++ -std=c++20 tests.cpp -Og -Wall -Wpedantic -march=x86-64-v4 -o tests && .\tests.exe
+clang++ -std=c++20 tests.cpp -O0 -g -fno-omit-frame-pointer -Wall -Wpedantic -march=x86-64-v3 -o tests
