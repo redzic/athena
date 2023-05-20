@@ -48,9 +48,19 @@ Board random_board() {
 
     assert(output_idx <= 64);
 
-    // remove pawns
-
     std::shuffle(brd.begin(), brd.end(), std::default_random_engine(0));
+
+    // remove pawns on 1st and 8th ranks
+    for (auto i = 0; i < 8; i++) {
+        if (is_pawn(brd[i])) {
+            brd[i] = Square::Empty;
+        }
+    }
+    for (auto i = 56; i < 64; i++) {
+        if (is_pawn(brd[i])) {
+            brd[i] = Square::Empty;
+        }
+    }
 
     return mailbox_to_bitboard(brd);
 }

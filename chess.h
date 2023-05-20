@@ -25,7 +25,7 @@ enum PieceColor : u8 { White = 0, Black = 1 };
 
 enum Square : u8 { wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty };
 
-bool is_pawn(Square sqr) { return sqr == Square::wp || sqr == Square::bp; }
+bool is_pawn(Square sqr) { return (sqr == Square::wp) || (sqr == Square::bp); }
 
 constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
     'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
