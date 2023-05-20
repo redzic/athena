@@ -77,6 +77,14 @@ struct Board {
         bitboards[13] = black;
         bitboards[14] = white | black;
     }
+
+    inline bool operator==(const Board& other) {
+        // optimization; only compare the first 12 elements of the bitboards
+        // and assume that the rest are valid.
+        // TODO add debug_assert for last elements
+        return std::memcmp(this->bitboards, other.bitboards,
+                           sizeof(u64) * 12) == 0;
+    }
 };
 
 constexpr Board Board::starting_position() {
@@ -242,8 +250,11 @@ static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 
 // assume white pieces
 
-constexpr u64 knight_attacks(const Board& brd, const u8 sqr_idx) {
-    return KNIGHT_ATTACK_TABLE[sqr_idx];
+// TODO fix const correctness... ugh...
+// kinda inconvenient but whatever.
+constexpr u64 knight_attacks(Board& brd, const u8 sqr_idx) {
+    // return KNIGHT_ATTACK_TABLE[sqr_idx];
+    return KNIGHT_ATTACK_TABLE[sqr_idx] & (~brd.white());
 }
 
 // seems best on clang since the compiled code is branchless

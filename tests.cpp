@@ -15,16 +15,19 @@ int randint(int min, int max) {
 
 using Mailbox = std::array<Square, 64>;
 
-Board mailbox_to_bitboard(const Mailbox& brd) {
-    Board bb(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+constexpr Board mailbox_to_bitboard(const Mailbox& brd) {
+    std::array<u64, 12> bitboards;
+    std::fill(bitboards.begin(), bitboards.end(), 0ull);
 
     for (auto i = 0; i < 64; i++) {
         if (brd[i] != Square::Empty) {
-            bb.bitboards[brd[i]] |= (msb >> i);
+            bitboards[brd[i]] |= (msb >> i);
         }
     }
 
-    return bb;
+    return Board(bitboards[0], bitboards[1], bitboards[2], bitboards[3],
+                 bitboards[4], bitboards[5], bitboards[6], bitboards[7],
+                 bitboards[8], bitboards[9], bitboards[10], bitboards[11]);
 }
 
 Board random_board() {
@@ -32,7 +35,7 @@ Board random_board() {
     std::fill(brd.begin(), brd.end(), Square::Empty);
 
     std::tuple<Square, int> pieces[] = {
-        {Square::wp, randint(0, 8)}, {Square::wn, randint(0, 2)},
+        {Square::wp, randint(0, 8)}, {Square::wn, 1},
         {Square::wr, randint(0, 2)}, {Square::wb, randint(0, 2)},
         {Square::wq, randint(0, 1)}, {Square::wk, 1},
         {Square::bp, randint(0, 8)}, {Square::bn, randint(0, 2)},
@@ -71,8 +74,26 @@ int main(int argc, char** argv) {
 
         assert(is_board_valid_debug(brd));
 
+        // find index of white knight (guaranteed to be exactly one)
+        auto wn_idx = std::countl_zero(brd.wn());
+
+        u64 attacks = knight_attacks(brd, wn_idx);
+        // bit_loop(attacks);
+
+        if (attacks) {
+            // TODO use bit_loop instead of just checking first value
+            auto att_idx = std::countl_zero(attacks);
+
+            auto brd_copy = brd;
+
+            make_wn_move(brd, wn_idx, att_idx);
+            make_wn_move_avx(brd_copy, wn_idx, att_idx);
+
+            // failing test case :(
+            assert(brd == brd_copy);
+        }
+
         // print_bitboard(brd.wn());
         print_board(brd);
-        bit_loop(brd.wn());
     }
 }
