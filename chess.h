@@ -78,12 +78,13 @@ struct Board {
         bitboards[14] = white | black;
     }
 
-    inline bool operator==(const Board& other) {
+    inline bool operator==(const Board& other) const {
         // optimization; only compare the first 12 elements of the bitboards
         // and assume that the rest are valid.
         // TODO add debug_assert for last elements
         return std::memcmp(this->bitboards, other.bitboards,
                            sizeof(u64) * 12) == 0;
+        // return 0;
     }
 };
 
@@ -427,7 +428,14 @@ constexpr u64 rook_attacks(const u8 sqr_idx) {
     return (rank >> (8 * y_idx)) ^ (file >> x_idx);
 }
 
-void print_bits(auto x) { std::cout << std::bitset<8>(x) << '\n'; }
+void print_bits(auto x, bool print_32 = false) {
+    if (print_32) {
+        std::cout << std::bitset<32>(x) << '\n';
+    } else {
+        std::cout << std::bitset<8>(x) << '\n';
+    }
+}
+// void print_bits(auto x) { std::cout << std::bitset<8>(x) << '\n'; }
 
 void bit_loop(u64 bits) {
     while (bits) {
@@ -486,9 +494,7 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
            fix_bits_file(occup, sqr_idx);
 }
 
-//
-
-void make_wn_move_avx(Board& brd, const u8 from_idx, const u8 to_idx) {
+void make_wn_move_avx512(Board& brd, const u8 from_idx, const u8 to_idx) {
     const u64 mask_unset_old = ~(msb >> from_idx);
     // unset bit (from square)
     // might be possible to SIMD this
@@ -514,20 +520,18 @@ void make_wn_move_avx(Board& brd, const u8 from_idx, const u8 to_idx) {
     brd.white() |= new_knight;
     brd.occup() |= new_knight;
 
-    const auto bbs = _mm256_loadu_si256((__m256i*)(&brd.bitboards[6]));
-    const auto new_knights = _mm256_set1_epi64x(new_knight);
+    // 6 that need to be checked...
+    const auto bbs = _mm512_loadu_si512((__m256i*)(&brd.bitboards[6]));
+    const auto new_knights = _mm512_set1_epi64(new_knight);
 
     // gcc doesn't like static_cast
     // maybe it should be reinterpret_cast instead?
 
-    // Also maybe this doesn't work because I think it might extract each
-    // qword into 2 bits... (i.e. 1 dword = 1 bit)
-
-    // TODO write tests for this function
-    u32 mask =
-        (u32)_mm256_movemask_pd(reinterpret_cast<__m256d>(_mm256_cmpeq_epi64(
-            _mm256_and_si256(bbs, new_knights), new_knights))) &
-        (u32)MASK6;
+    // TODO do we need to actually mask out the top 2 bits?
+    // the tests still don't fail without it...
+    u8 mask = _mm512_cmpeq_epi64_mask(_mm512_and_si512(bbs, new_knights),
+                                      new_knights) &
+              MASK6;
 
     // I think this works? although not guaranteed branchless...
     auto idx = mask == 0 ? 14 : 6 + std::countr_zero(mask);
