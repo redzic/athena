@@ -534,7 +534,7 @@ void make_wn_move_avx512(Board& brd, const u8 from_idx, const u8 to_idx) {
               MASK6;
 
     // I think this works? although not guaranteed branchless...
-    auto idx = mask == 0 ? 14 : 6 + std::countr_zero(mask);
+    auto idx = mask == 0 ? 13 : 6 + std::countr_zero(mask);
 
     brd.bitboards[idx] &= ~new_knight;
 }
@@ -576,8 +576,11 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // TODO fix OOB access when bits == 0
     // auto idx = std::countr_zero(bits);
 
-    // I think this works? although not guaranteed branchless...
-    auto idx = bits == 0 ? 8 : std::countr_zero(bits);
+    // I think these tests need to be better since they're kinda passing
+    // with any random change to the code...
 
-    brd.bitboards[6 + idx] &= ~new_knight;
+    // I think this works? although not guaranteed branchless...
+    auto idx = bits == 0 ? 13 : 6 + std::countr_zero(bits);
+
+    brd.bitboards[idx] &= ~new_knight;
 }

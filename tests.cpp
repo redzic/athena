@@ -81,34 +81,34 @@ bool bitboard_assert_eq(const Board& b1, const Board& b2) {
 }
 
 int main(int argc, char** argv) {
-    // while (1) {
-    auto brd = random_board();
+    while (1) {
+        auto brd = random_board();
 
-    assert(is_board_valid_debug(brd));
+        assert(is_board_valid_debug(brd));
 
-    // find index of white knight (guaranteed to be exactly one)
-    auto wn_idx = std::countl_zero(brd.wn());
+        // find index of white knight (guaranteed to be exactly one)
+        auto wn_idx = std::countl_zero(brd.wn());
 
-    u64 attacks = knight_attacks(brd, wn_idx);
-    // bit_loop(attacks);
+        u64 attacks = knight_attacks(brd, wn_idx);
+        // bit_loop(attacks);
 
-    if (attacks) {
-        // TODO use bit_loop instead of just checking first value
-        auto att_idx = std::countl_zero(attacks);
+        if (attacks) {
+            // TODO use bit_loop instead of just checking first value
+            auto att_idx = std::countl_zero(attacks);
 
-        auto brd_copy = brd;
+            auto brd_copy = brd;
 
-        make_wn_move(brd, wn_idx, att_idx);
-        make_wn_move_avx512(brd_copy, wn_idx, att_idx);
+            make_wn_move(brd, wn_idx, att_idx);
+            make_wn_move_avx512(brd_copy, wn_idx, att_idx);
 
-        // failing test case :(
-        assert(brd == brd_copy);
-        // if (!bitboard_assert_eq(brd, brd_copy)) {
-        //     return 0;
-        // }
+            // failing test case :(
+            assert(brd == brd_copy);
+            // if (!bitboard_assert_eq(brd, brd_copy)) {
+            //     return 0;
+            // }
+        }
+
+        // print_bitboard(brd.wn());
+        print_board(brd);
     }
-
-    // print_bitboard(brd.wn());
-    print_board(brd);
-    // }
 }
