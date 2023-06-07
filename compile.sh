@@ -1,0 +1,1 @@
+clang++ -std=c++20 main.cpp -O3 -Wall -Wpedantic -o ./build/athena && ./build/athena

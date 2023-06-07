@@ -5,9 +5,12 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <immintrin.h>
 #include <iostream>
 #include <tuple>
+
+#if defined(__X86_64__)
+#include <immintrin.h>
+#endif
 
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
@@ -470,9 +473,31 @@ u8 fix_bits_rank(u8 occup, const u8 idx) {
     return (u8)(result & 0xff);
 }
 
-u64 ext8bits(u64 x) { return _pext_u64(x, broadcast_byte(1 << 7)); }
+// TODO optimize functions that call this for for no pext
+u64 ext8bits(u64 x) {
+#if defined(__X86_64__)
+    return _pext_u64(x, broadcast_byte(1 << 7));
+#else
+    u64 res = 0;
+    for (auto i = 0; i < 8; i++) {
+        res |= ((x >> (8 * i)) & 1) << i;
+    }
+    return res;
+#endif
+}
 
-u64 dep8bits(u64 x) { return _pdep_u64(x, broadcast_byte(1 << 7)); }
+// TODO same as above
+u64 dep8bits(u64 x) {
+#if defined(__X86_64__)
+    return _pdep_u64(x, broadcast_byte(1 << 7));
+#else
+    u64 res = 0;
+    for (auto i = 0; i < 8; i++) {
+        res |= ((x >> i) & 1) << (8 * i);
+    }
+    return res;
+#endif
+}
 
 // row_idx is 0-7
 u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
@@ -494,6 +519,7 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
            fix_bits_file(occup, sqr_idx);
 }
 
+#if defined(__X86_64__)
 void make_wn_move_avx512(Board& brd, const u8 from_idx, const u8 to_idx) {
     const u64 mask_unset_old = ~(msb >> from_idx);
     // unset bit (from square)
@@ -538,6 +564,7 @@ void make_wn_move_avx512(Board& brd, const u8 from_idx, const u8 to_idx) {
 
     brd.bitboards[idx] &= ~new_knight;
 }
+#endif
 
 // make white knight move
 // will generalize to all applicable moves types later
