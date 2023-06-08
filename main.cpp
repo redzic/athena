@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 
     // print_board(brd);
 
-    make_wn_move<Square::wn>(brd, n_idx, n_idx - 17);
+    make_move<White, Knight>(brd, n_idx, n_idx - 17);
 
     assert(is_board_valid_debug(brd));
 
