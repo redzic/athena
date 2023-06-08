@@ -48,6 +48,14 @@ constexpr PieceColor operator!(PieceColor orig) {
 
 enum Square : u8 { wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty };
 
+// TODO check why can't I use consteval here?
+constexpr PieceColor color_of_sqr(const Square sqr) {
+    if (sqr == Square::Empty)
+        throw std::logic_error("Empty square not allowed");
+
+    return static_cast<PieceColor>(sqr >= Square::bp);
+}
+
 constexpr bool is_white(const PieceColor pc) noexcept {
     return pc == PieceColor::White;
 }
@@ -93,6 +101,14 @@ struct Board {
     constexpr u64& white() { return bitboards[12]; }
     constexpr u64& black() { return bitboards[13]; }
     constexpr u64& occup() { return bitboards[14]; }
+
+    template <Square s> constexpr u64& board() {
+        // TODO if this keeps coming up then maybe use PieceType separately
+        if (s == Square::Empty)
+            throw std::logic_error("Empty square not allowed");
+
+        return bitboards[s];
+    }
 
     template <PieceColor c> constexpr u64& color() {
         return bitboards[12 + static_cast<u8>(c)];
@@ -582,20 +598,24 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
 
 // template <const PieceColor pc> void hello() {}
 
-template <PieceColor to_mv>
+// TODO probably more convenient to have separate piecetype and color
+// for this instead of doing based on square enum
+
+template <Square piece>
 constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
+    constexpr PieceColor to_mv = color_of_sqr(piece);
     constexpr PieceColor enemy = !to_mv;
 
     const u64 old_knight = msb >> from_idx;
 
-    brd.knights<to_mv>() &= ~old_knight;
+    brd.board<piece>() &= ~old_knight;
     brd.color<to_mv>() &= ~old_knight;
     brd.occup() &= ~old_knight;
 
     const u64 new_knight = msb >> to_idx;
 
-    brd.knights<to_mv>() |= new_knight;
+    brd.board<piece>() |= new_knight;
     brd.color<to_mv>() |= new_knight;
 
     auto capture = brd.color<enemy>() & new_knight;
