@@ -353,16 +353,12 @@ constexpr bool is_board_valid_debug(Board brd) {
     for (auto i = 0; i < 64; i++) {
         int count = 0;
 
-        // yep I guess compiler already automatically reuses the allocation
-
-        // TODO maybe make separate PieceType?
-        // so that it does not have empty value...
-        // or maybe that's unnecessary.
         Square dupes[12];
 
         for (auto j = 0; j < 12; j++) {
-            // count += (brd.bitboards[j] >> (63 - i)) & 1;
-            if ((brd.bitboards[j] >> (63 - i)) & 1) {
+            // check if ith bit is set starting from left (msb)
+            // msb = index 0, and so on
+            if ((brd.bitboards[j] << i) & MSB64) {
                 dupes[count++] = static_cast<Square>(j);
             }
         }
