@@ -548,53 +548,6 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
            fix_bits_file(occup, sqr_idx);
 }
 
-#if defined(__X86_64__)
-void make_wn_move_avx512(Board& brd, const u8 from_idx, const u8 to_idx) {
-    const u64 mask_unset_old = ~(msb >> from_idx);
-    // unset bit (from square)
-    // might be possible to SIMD this
-
-    // const auto mask1 = _mm256_setr_epi64x(~0ull, mask_unset_old,
-    // mask_unset_old,
-    //                                       mask_unset_old);
-
-    // no gain from simd here it seems
-    // registers are just too far apart in memory and not enough ands/ors
-    // are being done to justify simd for this part
-
-    brd.wn() &= mask_unset_old;
-
-    brd.white() &= mask_unset_old;
-    brd.occup() &= mask_unset_old;
-
-    // unset bit
-    brd.black() &= mask_unset_old;
-
-    const u64 new_knight = msb >> to_idx;
-    brd.wn() |= new_knight;
-    brd.white() |= new_knight;
-    brd.occup() |= new_knight;
-
-    // 6 that need to be checked...
-    const auto bbs = _mm512_loadu_si512((__m256i*)(&brd.bitboards[6]));
-    const auto new_knights = _mm512_set1_epi64(new_knight);
-
-    // gcc doesn't like static_cast
-    // maybe it should be reinterpret_cast instead?
-
-    // TODO do we need to actually mask out the top 2 bits?
-    // the tests still don't fail without it...
-    u8 mask = _mm512_cmpeq_epi64_mask(_mm512_and_si512(bbs, new_knights),
-                                      new_knights) &
-              MASK6;
-
-    // I think this works? although not guaranteed branchless...
-    auto idx = mask == 0 ? 13 : 6 + std::countr_zero(mask);
-
-    brd.bitboards[idx] &= ~new_knight;
-}
-#endif
-
 // make white knight move
 // will generalize to all applicable moves types later
 constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
