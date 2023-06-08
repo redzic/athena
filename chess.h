@@ -452,7 +452,7 @@ constexpr u8 fix_bits_rank(u8 occup, const u8 idx) {
 }
 
 // TODO optimize functions that call this for for no pext
-u64 ext8bits(u64 x) {
+constexpr u64 ext8bits(u64 x) {
 #if defined(__X86_64__)
     return _pext_u64(x, broadcast_byte(1 << 7));
 #else
@@ -465,7 +465,7 @@ u64 ext8bits(u64 x) {
 }
 
 // TODO same as above
-u64 dep8bits(u64 x) {
+constexpr u64 dep8bits(u64 x) {
 #if defined(__X86_64__)
     return _pdep_u64(x, broadcast_byte(1 << 7));
 #else
@@ -478,7 +478,7 @@ u64 dep8bits(u64 x) {
 }
 
 // row_idx is 0-7
-u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
+constexpr u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
     const u8 x_idx = sqr_idx % 8;
     const u8 y_idx = sqr_idx / 8;
 
