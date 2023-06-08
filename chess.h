@@ -14,6 +14,17 @@
 #include <immintrin.h>
 #endif
 
+// clang does not support attribute assume :(
+#if defined(__clang__)
+#define _ASSUME(cond) __builtin_assume(cond);
+#elif defined(__GNUC__)
+#define _ASSUME(cond) [[assume(cond)]];
+#endif
+
+// TODO check best practice with naming conventions on these defines
+
+#define _ForceInline __attribute__((always_inline)) inline
+
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
 using u16 = std::uint16_t;
@@ -33,7 +44,7 @@ constexpr u64 RANK6 = RANK5 << 8;
 constexpr u64 RANK7 = RANK6 << 8;
 constexpr u64 RANK8 = RANK7 << 8;
 
-constexpr u64 msb = (1ull << 63);
+constexpr u64 MSB64 = (1ull << 63);
 
 consteval u64 broadcast_byte(const u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
@@ -231,25 +242,12 @@ void print_board(const Board& brd) {
                 ROW_LEN);
 
     for (auto i = 0; i < 12; i++) {
-        // do simple way for now
-        // TODO figure out how to do bit loop later with lzcnt or whatever
-        // for (auto j = 0; j < 64; j++) {
-        //     // TODO check if this is better to do branchless (maybe not
-        //     though)
-
-        //     if (brd.bitboards[i] & (msb >> j)) {
-        //         array_brd[j] = static_cast<Square>(i);
-        //     }
-        // }
-
         // TODO figure out how to move this into its own iterator
         // preferably with zero-cost abstraction
         for (auto bb = brd.bitboards[i]; bb;) {
             const auto lzcnt = std::countl_zero(bb);
-
             array_brd[lzcnt] = static_cast<Square>(i);
-
-            bb &= ~(msb >> lzcnt);
+            bb &= ~(MSB64 >> lzcnt);
         }
     }
 
@@ -294,7 +292,7 @@ consteval u64 knight_attack_map(const u8 sqr_idx) {
         const int new_y = y_idx + dy;
 
         if ((new_x >= 0 && new_x <= 7) && (new_y >= 0 && new_y <= 7)) {
-            u64 sqr = ((1ull << 63) >> (8 * new_y)) >> new_x;
+            u64 sqr = MSB64 >> (8 * new_y + new_x);
             attack_map |= sqr;
         }
     }
@@ -312,93 +310,16 @@ consteval std::array<u64, 64> build_knight_table() {
     return table;
 }
 
-static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
+constinit static const auto KNIGHT_ATTACK_TABLE = build_knight_table();
 
 // assume white pieces
 
 // TODO fix const correctness... ugh...
 // kinda inconvenient but whatever.
-constexpr u64 knight_attacks(Board& brd, const u8 sqr_idx) {
-    // return KNIGHT_ATTACK_TABLE[sqr_idx];
-    return KNIGHT_ATTACK_TABLE[sqr_idx] & (~brd.white());
-}
-
-// seems best on clang since the compiled code is branchless
-constexpr u64 knight_attacks_bitwise(const Board& brd, const u8 sqr_idx) {
-    // TODO figure out how to make debug assert in C++
-    // debug_assert(sqr_idx <= 63);
-    u64 attack_map = 0;
-
-    // center = 2,2 = 18
-
-    // 01010000
-    // 10001000
-    // 00000000
-    // 10001000
-    // 01010000
-    // 00000000
-    // 00000000
-    // 00000000
-
-    constexpr u64 N_ATTACK_BITS =
-        0b01010000'10001000'00000000'10001000'01010000'00000000'00000000'00000000;
-
-    int dist = 18 - (int)sqr_idx;
-
-    // i.e. center > sqr_idx
-    if (dist > 0) {
-        attack_map = N_ATTACK_BITS << dist;
-    } else {
-        attack_map = N_ATTACK_BITS >> (-dist);
-    }
-
-    u8 x_idx = sqr_idx % 8;
-
-    constexpr u64 FIX_OOB = broadcast_byte(0xf0);
-
-    if (x_idx <= 1) {
-        attack_map &= FIX_OOB;
-    } else if (x_idx >= 6) {
-        attack_map &= FIX_OOB >> 4;
-    }
-
-    // TODO figure out what happens when king is attacked...
-    // surely that can't be a legal move right?
-
-    // return attack_map & (~(*brd.white()));
-    return attack_map;
-}
-
-// assume white pieces
-constexpr u64 knight_attacks_fast(const Board& brd, const u8 sqr_idx) {
-    // TODO figure out how to make debug assert in C++
-    // debug_assert(sqr_idx <= 63);
-
-    constexpr u64 DUP8_BITS = 0x101010101010101;
-
-    constexpr u64 N_ATTACK_LEFT =
-        0b00000010'00000100'00000000'00000100'00000010'00000000'00000000'00000000;
-    constexpr u64 N_ATTACK_RIGHT =
-        0b01000000'00100000'00000000'00100000'01000000'00000000'00000000'00000000;
-
-    const u8 x = sqr_idx % 8;
-    const u8 y = sqr_idx / 8;
-
-    // auto r_shift = sqr_idx;
-    const u64 rmask = ((u64)((u8)(((u8)RANK1) >> x))) * DUP8_BITS;
-
-    const u64 lmask = ((u64)((u8)(((u8)RANK1) << (7 - x)))) * DUP8_BITS;
-
-    u64 right_side = (N_ATTACK_RIGHT >> x) & rmask;
-    u64 left_side = (N_ATTACK_LEFT << (7 - x)) & lmask;
-
-    u64 attacks = left_side | right_side;
-
-    if (y <= 1) {
-        return attacks << (8 * (2 - y));
-    } else {
-        return attacks >> (8 * (y - 2));
-    }
+template <PieceColor c>
+_ForceInline constexpr u64 knight_attacks(Board& brd,
+                                          const u8 sqr_idx) noexcept {
+    return KNIGHT_ATTACK_TABLE[sqr_idx] & ~brd.color<c>();
 }
 
 // TODO add in checking of white/black/occup
@@ -475,10 +396,9 @@ constexpr u64 rook_attacks(const u8 sqr_idx) {
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
 
-    constexpr u64 rank = ((1ull << 8) - 1) << (64 - 8);
     constexpr u64 file = broadcast_byte((u8)1 << 7);
 
-    return (rank >> (8 * y_idx)) ^ (file >> x_idx);
+    return (RANK8 >> (8 * y_idx)) ^ (file >> x_idx);
 }
 
 void print_bits(auto x, bool print_32 = false) {
@@ -490,7 +410,13 @@ void print_bits(auto x, bool print_32 = false) {
 }
 // void print_bits(auto x) { std::cout << std::bitset<8>(x) << '\n'; }
 
-// TODO apparently can be done with blsr instruction x86
+// can be done with blsr instruction x86
+// aka x &= x - 1
+// but will iterate over lsbs first
+// and wont give you index lol
+
+// TODO perhaps we can just accept a templated callback argument?
+// that receives each index
 void bit_loop(u64 bits) {
     while (bits) {
         const auto lzcnt = std::countl_zero(bits);
@@ -498,7 +424,7 @@ void bit_loop(u64 bits) {
         // use lzcnt (index) here
         std::cout << lzcnt << '\n';
 
-        bits &= ~(msb >> lzcnt);
+        bits &= ~(MSB64 >> lzcnt);
     }
 }
 
@@ -564,14 +490,22 @@ u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
 // TODO does C++ ensure l/r shift shifts into zeros?
 
 // TODO just template over piece color
-u64 wpawns_atk(u64 wp, u64 occup, u64 black) noexcept {
+// TODO make sure everything is optimized out properly
+template <PieceColor c>
+constexpr u64 pawns_atk(u64 your_pawns, u64 occup, u64 enemy) noexcept {
     // TODO add sideway attacks
-    const u64 fwd_mvs = (wp << 8) | ((wp & RANK2) << 16);
+    const u64 fwd_mvs_white = (your_pawns << 8) | ((your_pawns & RANK2) << 16);
+    const u64 fwd_mvs_black = (your_pawns >> 8) | ((your_pawns & RANK7) >> 16);
 
-    u64 side_atks =
-        ((wp << 9) & broadcast_byte(1)) | ((wp << 7) & broadcast_byte(1 << 7));
+    const u64 side_atks_white = ((your_pawns << 9) & broadcast_byte(1)) |
+                                ((your_pawns << 7) & broadcast_byte(1 << 7));
+    const u64 side_atks_black = ((your_pawns >> 7) & broadcast_byte(1)) |
+                                ((your_pawns >> 9) & broadcast_byte(1 << 7));
 
-    return (fwd_mvs & ~occup) | (side_atks & black);
+    auto fwd_mvs = is_white(c) ? fwd_mvs_white : fwd_mvs_black;
+    auto side_atks = is_white(c) ? side_atks_white : side_atks_black;
+
+    return (fwd_mvs & ~occup) | (side_atks & enemy);
 }
 
 constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
@@ -583,31 +517,26 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
            fix_bits_file(occup, sqr_idx);
 }
 
-// make white knight move
-// will generalize to all applicable moves types later
-
-// template <const PieceColor pc> void hello() {}
-
-// TODO probably more convenient to have separate piecetype and color
-// for this instead of doing based on square enum
-
 // TODO most of the template instantiations are quite similar, is this
 // really necessary?
-// check if generated code is worse when passing color and type as runtime
-// arguments
+// should check if generated code is worse when passing color and type as
+// runtime arguments
 template <PieceColor c, PieceType t>
 constexpr void make_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
 
-    const u64 old_piece = msb >> from_idx;
+    const u64 old_piece = MSB64 >> from_idx;
 
+    // we could also xor here with old_piece (not negated, these are bits
+    // are always set in a valid board), but it ends up being slightly
+    // more instructions on x86 on clang for some reason.
     brd.board<c, t>() &= ~old_piece;
     brd.color<to_mv>() &= ~old_piece;
     brd.occup() &= ~old_piece;
 
-    const u64 new_piece = msb >> to_idx;
+    const u64 new_piece = MSB64 >> to_idx;
 
     brd.board<c, t>() |= new_piece;
     brd.color<to_mv>() |= new_piece;
