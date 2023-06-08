@@ -41,9 +41,23 @@ consteval u64 broadcast_byte(const u8 b) {
 
 enum PieceColor : u8 { White = 0, Black = 1 };
 
+constexpr PieceColor operator!(PieceColor orig) {
+    orig = static_cast<PieceColor>(!static_cast<u8>(orig));
+    return orig;
+}
+
 enum Square : u8 { wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty };
 
-bool is_pawn(Square sqr) { return (sqr == Square::wp) || (sqr == Square::bp); }
+constexpr bool is_white(const PieceColor pc) noexcept {
+    return pc == PieceColor::White;
+}
+constexpr bool is_black(const PieceColor pc) noexcept {
+    return pc == PieceColor::Black;
+}
+
+constexpr bool is_pawn(const Square sqr) noexcept {
+    return (sqr == Square::wp) || (sqr == Square::bp);
+}
 
 constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
     'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
@@ -80,6 +94,29 @@ struct Board {
     constexpr u64& black() { return bitboards[13]; }
     constexpr u64& occup() { return bitboards[14]; }
 
+    template <PieceColor c> constexpr u64& color() {
+        return bitboards[12 + static_cast<u8>(c)];
+    }
+
+    template <PieceColor c> constexpr u64& pawns() {
+        return bitboards[c * 6 + 0];
+    }
+    template <PieceColor c> constexpr u64& knights() {
+        return bitboards[c * 6 + 1];
+    }
+    template <PieceColor c> constexpr u64& rooks() {
+        return bitboards[c * 6 + 2];
+    }
+    template <PieceColor c> constexpr u64& bishops() {
+        return bitboards[c * 6 + 3];
+    }
+    template <PieceColor c> constexpr u64& queens() {
+        return bitboards[c * 6 + 4];
+    }
+    template <PieceColor c> constexpr u64& king() {
+        return bitboards[c * 6 + 5];
+    }
+
     constexpr Board(u64 wp, u64 wn, u64 wr, u64 wb, u64 wq, u64 wk, u64 bp,
                     u64 bn, u64 br, u64 bb, u64 bq, u64 bk) {
         bitboards[0] = wp;
@@ -107,7 +144,6 @@ struct Board {
         // TODO add debug_assert for last elements
         return std::memcmp(this->bitboards, other.bitboards,
                            sizeof(u64) * 12) == 0;
-        // return 0;
     }
 };
 
@@ -359,7 +395,9 @@ constexpr u64 knight_attacks_fast(const Board& brd, const u8 sqr_idx) {
     }
 }
 
-constexpr bool is_board_valid_debug(const Board brd) {
+// TODO add in checking of white/black/occup
+// TODO fix const on this
+constexpr bool is_board_valid_debug(Board brd) {
     auto is_valid = true;
 
     for (auto i = 0; i < 64; i++) {
@@ -391,6 +429,22 @@ constexpr bool is_board_valid_debug(const Board brd) {
             }
             std::cout << '\n';
         }
+    }
+
+    if (brd.white() !=
+        (brd.wp() | brd.wn() | brd.wb() | brd.wr() | brd.wq() | brd.wk())) {
+        std::cout << "White bitboard is missing pieces\n";
+        return false;
+    }
+    if (brd.black() !=
+        (brd.bp() | brd.bn() | brd.bb() | brd.br() | brd.bq() | brd.bk())) {
+        std::cout << "Black bitboard is missing pieces\n";
+
+        return false;
+    }
+    if (brd.occup() != (brd.white() | brd.black())) {
+        std::cout << "Occupancy bitboard is missing pieces\n";
+        return false;
     }
 
     return is_valid;
@@ -525,34 +579,40 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
 
 // make white knight move
 // will generalize to all applicable moves types later
+
+// template <const PieceColor pc> void hello() {}
+
+template <PieceColor to_mv>
 constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
+    constexpr PieceColor enemy = !to_mv;
 
     const u64 old_knight = msb >> from_idx;
 
-    // must update
-    brd.wn() &= ~old_knight;
-    brd.white() &= ~old_knight;
+    brd.knights<to_mv>() &= ~old_knight;
+    brd.color<to_mv>() &= ~old_knight;
     brd.occup() &= ~old_knight;
 
     const u64 new_knight = msb >> to_idx;
-    // must update
-    brd.wn() |= new_knight;
-    brd.white() |= new_knight;
 
-    auto capture = brd.black() & new_knight;
+    brd.knights<to_mv>() |= new_knight;
+    brd.color<to_mv>() |= new_knight;
+
+    auto capture = brd.color<enemy>() & new_knight;
 
     if (capture) {
-        brd.bp() &= ~new_knight;
-        brd.bn() &= ~new_knight;
-        brd.br() &= ~new_knight;
-        brd.bb() &= ~new_knight;
-        brd.bq() &= ~new_knight;
-        brd.bk() &= ~new_knight;
-        brd.black() &= ~new_knight;
+        /* clang-format off */
+        brd.pawns   <enemy>() &= ~new_knight;
+        brd.knights <enemy>() &= ~new_knight;
+        brd.rooks   <enemy>() &= ~new_knight;
+        brd.bishops <enemy>() &= ~new_knight;
+        brd.queens  <enemy>() &= ~new_knight;
+        brd.king    <enemy>() &= ~new_knight;
+        brd.color   <enemy>() &= ~new_knight;
+        /* clang-format on */
     } else {
         // no need to update if capture, since this bit was already set by old
-        // black piece
+        // enemy piece
         brd.occup() |= new_knight;
     }
 }
