@@ -535,9 +535,6 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     brd.white() &= ~old_knight;
     brd.occup() &= ~old_knight;
 
-    // need to do search now to figure out what piece that was
-    // search bitboard index [6, 11]
-
     const u64 new_knight = msb >> to_idx;
     // must update
     brd.wn() |= new_knight;
@@ -546,28 +543,16 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     auto capture = brd.black() & new_knight;
 
     if (capture) {
-        u64 b1 = brd.bitboards[6] & new_knight;
-        // wow... clang auto vectorizes below 4 rotates very smartly
-        u64 b2 = std::rotr(brd.bitboards[7] & new_knight, 1);
-        u64 b3 = std::rotr(brd.bitboards[8] & new_knight, 2);
-        u64 b4 = std::rotr(brd.bitboards[9] & new_knight, 3);
-        u64 b5 = std::rotr(brd.bitboards[10] & new_knight, 4);
-        u64 b6 = std::rotr(brd.bitboards[11] & new_knight, 5);
-
-        u64 bits = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx);
-
-        auto idx = std::countl_zero(bits);
-
-        brd.bitboards[6 + idx] &= ~new_knight;
+        brd.bp() &= ~new_knight;
+        brd.bn() &= ~new_knight;
+        brd.br() &= ~new_knight;
+        brd.bb() &= ~new_knight;
+        brd.bq() &= ~new_knight;
+        brd.bk() &= ~new_knight;
         brd.black() &= ~new_knight;
     } else {
         // no need to update if capture, since this bit was already set by old
         // black piece
         brd.occup() |= new_knight;
     }
-
-    // a valid bitboard shouldn't have overlapping bits
-    // in these bits except for wn which is index 1
-
-    // search is not necessary for no capture cah
 }
