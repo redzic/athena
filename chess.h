@@ -597,32 +597,32 @@ constexpr void make_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
 
-    const u64 old_knight = msb >> from_idx;
+    const u64 old_piece = msb >> from_idx;
 
-    brd.board<c, t>() &= ~old_knight;
-    brd.color<to_mv>() &= ~old_knight;
-    brd.occup() &= ~old_knight;
+    brd.board<c, t>() &= ~old_piece;
+    brd.color<to_mv>() &= ~old_piece;
+    brd.occup() &= ~old_piece;
 
-    const u64 new_knight = msb >> to_idx;
+    const u64 new_piece = msb >> to_idx;
 
-    brd.board<c, t>() |= new_knight;
-    brd.color<to_mv>() |= new_knight;
+    brd.board<c, t>() |= new_piece;
+    brd.color<to_mv>() |= new_piece;
 
-    auto capture = brd.color<enemy>() & new_knight;
+    auto capture = brd.color<enemy>() & new_piece;
 
     if (capture) {
         /* clang-format off */
-        brd.pawns   <enemy>() &= ~new_knight;
-        brd.knights <enemy>() &= ~new_knight;
-        brd.rooks   <enemy>() &= ~new_knight;
-        brd.bishops <enemy>() &= ~new_knight;
-        brd.queens  <enemy>() &= ~new_knight;
-        brd.king    <enemy>() &= ~new_knight;
-        brd.color   <enemy>() &= ~new_knight;
+        brd.pawns   <enemy>() &= ~new_piece;
+        brd.knights <enemy>() &= ~new_piece;
+        brd.rooks   <enemy>() &= ~new_piece;
+        brd.bishops <enemy>() &= ~new_piece;
+        brd.queens  <enemy>() &= ~new_piece;
+        brd.king    <enemy>() &= ~new_piece;
+        brd.color   <enemy>() &= ~new_piece;
         /* clang-format on */
     } else {
         // no need to update if capture, since this bit was already set by old
         // enemy piece
-        brd.occup() |= new_knight;
+        brd.occup() |= new_piece;
     }
 }
