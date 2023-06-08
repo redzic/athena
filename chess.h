@@ -105,7 +105,7 @@ struct Board {
     }
 
     template <PieceColor c> constexpr u64& pawns() {
-        return bitboards[static_cast<u8>(c) * 6 + 0];
+        return bitboards[static_cast<u8>(c) * 6];
     }
     template <PieceColor c> constexpr u64& knights() {
         return bitboards[static_cast<u8>(c) * 6 + 1];
