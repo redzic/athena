@@ -618,16 +618,15 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     auto capture = brd.black() & new_knight;
 
     if (capture) {
-        u64 b1 = brd.bitboards[6];
+        u64 b1 = brd.bitboards[6] & new_knight;
         // wow... clang auto vectorizes below 4 rotates very smartly
-        u64 b2 = std::rotr(brd.bitboards[7], 1);
-        u64 b3 = std::rotr(brd.bitboards[8], 2);
-        u64 b4 = std::rotr(brd.bitboards[9], 3);
-        u64 b5 = std::rotr(brd.bitboards[10], 4);
-        u64 b6 = std::rotr(brd.bitboards[11], 5);
+        u64 b2 = std::rotr(brd.bitboards[7] & new_knight, 1);
+        u64 b3 = std::rotr(brd.bitboards[8] & new_knight, 2);
+        u64 b4 = std::rotr(brd.bitboards[9] & new_knight, 3);
+        u64 b5 = std::rotr(brd.bitboards[10] & new_knight, 4);
+        u64 b6 = std::rotr(brd.bitboards[11] & new_knight, 5);
 
-        u64 bits = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx) &
-                   (0b111'111ull << (64 - 6));
+        u64 bits = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx);
 
         auto idx = std::countl_zero(bits);
 
