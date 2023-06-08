@@ -24,6 +24,7 @@
 // TODO check best practice with naming conventions on these defines
 
 #define _ForceInline __attribute__((always_inline)) inline
+#define _NoInline __attribute__((noinline))
 
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
@@ -201,7 +202,7 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
     bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0xf) >> 12);
 }
 
-void print_board(const Board& brd) {
+_NoInline constexpr void print_board(const Board& brd) {
     std::array<Square, 64> array_brd;
     std::fill(array_brd.begin(), array_brd.end(), Square::Empty);
 
@@ -229,7 +230,7 @@ void print_board(const Board& brd) {
 
     std::array<char, NUM_CHARS> board_str;
 
-    static constexpr std::string_view str_row =
+    constexpr std::string_view str_row =
         "+-+-+-+-+-+-+-+-+\n| | | | | | | | |\n";
 
     static_assert(str_row.size() == (2 * ROW_LEN));
