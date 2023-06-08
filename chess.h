@@ -262,7 +262,7 @@ _NoInline constexpr void print_board(const Board& brd) {
     std::cout << std::string_view(board_str.data(), NUM_CHARS);
 }
 
-void print_bitboard(u64 bitboard) {
+_NoInline constexpr void print_bitboard(u64 bitboard) {
     for (auto i = 0; i < 8; i++) {
         for (auto j = 0; j < 8; j++) {
             auto bit = ((bitboard << j) >> 63) & 1;
@@ -418,7 +418,7 @@ void print_bits(auto x, bool print_32 = false) {
 
 // TODO perhaps we can just accept a templated callback argument?
 // that receives each index
-void bit_loop(u64 bits) {
+constexpr void bit_loop(u64 bits) {
     while (bits) {
         const auto lzcnt = std::countl_zero(bits);
 
@@ -429,7 +429,7 @@ void bit_loop(u64 bits) {
     }
 }
 
-u8 fix_bits_rank(u8 occup, const u8 idx) {
+constexpr u8 fix_bits_rank(u8 occup, const u8 idx) {
     occup &= ~((1 << 7) >> idx);
 
     const u16 bit1 = (1 << 7) >> idx;
