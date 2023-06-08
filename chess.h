@@ -156,12 +156,22 @@ struct Board {
         bitboards[14] = white | black;
     }
 
-    inline bool operator==(const Board& other) const {
+    _ForceInline constexpr bool operator==(const Board& other) const {
         // optimization; only compare the first 12 elements of the bitboards
         // and assume that the rest are valid.
         // TODO add debug_assert for last elements
-        return std::memcmp(this->bitboards, other.bitboards,
-                           sizeof(u64) * 12) == 0;
+
+        if (std::is_constant_evaluated()) {
+            for (auto i = 0; i < 12; i++) {
+                if (this->bitboards[i] != other.bitboards[i]) {
+                    return false;
+                }
+            }
+            return true;
+        } else {
+            return std::memcmp(this->bitboards, other.bitboards,
+                               sizeof(u64) * 12) == 0;
+        }
     }
 };
 
@@ -304,6 +314,9 @@ consteval u64 knight_attack_map(const u8 sqr_idx) {
 consteval std::array<u64, 64> build_knight_table() {
     std::array<u64, 64> table;
 
+    // should these be size_t? does that change codegen?
+    // when things are statically known... (not constexpr just statically known
+    // upper bound)
     for (auto i = 0; i < 64; i++) {
         table[i] = knight_attack_map(i);
     }
