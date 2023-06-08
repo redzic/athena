@@ -600,46 +600,46 @@ void make_wn_move_avx512(Board& brd, const u8 from_idx, const u8 to_idx) {
 constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
 
-    const u64 mask_unset_old = ~(msb >> from_idx);
+    const u64 old_knight = msb >> from_idx;
     // unset bit (from square)
     // might be possible to SIMD this
-    brd.wn() &= mask_unset_old;
-    brd.white() &= mask_unset_old;
-    brd.occup() &= mask_unset_old;
 
-    // unset bit
-    brd.black() &= mask_unset_old;
+    // must update
+    brd.wn() &= ~old_knight;
+    brd.white() &= ~old_knight;
+    brd.occup() &= ~old_knight;
+
     // need to do search now to figure out what piece that was
-
     // search bitboard index [6, 11]
 
     const u64 new_knight = msb >> to_idx;
+    // must update
     brd.wn() |= new_knight;
     brd.white() |= new_knight;
+    // technically might not have to update this if capture
     brd.occup() |= new_knight;
 
     // TODO simd?
 
     // TODO I think could be optimized more...
-    // u64 b1 = ((brd.bitboards[6] & new_knight) << to_idx);
-    // u64 b2 = ((brd.bitboards[7] & new_knight) << to_idx);
-    // u64 b3 = ((brd.bitboards[8] & new_knight) << to_idx);
-    // u64 b4 = ((brd.bitboards[9] & new_knight) << to_idx);
-    // u64 b5 = ((brd.bitboards[10] & new_knight) << to_idx);
-    // u64 b6 = ((brd.bitboards[11] & new_knight) << to_idx);
 
-    u64 b1 = (brd.bitboards[6] << to_idx) & msb;
-    u64 b2 = (brd.bitboards[7] << to_idx) & msb;
-    u64 b3 = (brd.bitboards[8] << to_idx) & msb;
-    u64 b4 = (brd.bitboards[9] << to_idx) & msb;
-    u64 b5 = (brd.bitboards[10] << to_idx) & msb;
-    u64 b6 = (brd.bitboards[11] << to_idx) & msb;
+    // a valid bitboard shouldn't have overlapping bits
+    // in these bits except for wn which is index 1
+
+    // search is not necessary for no capture cah
+
+    u64 b1 = brd.bitboards[6];
+    // wow... clang auto vectorizes below 4 rotates very smartly
+    u64 b2 = std::rotr(brd.bitboards[7], 1);
+    u64 b3 = std::rotr(brd.bitboards[8], 2);
+    u64 b4 = std::rotr(brd.bitboards[9], 3);
+    u64 b5 = std::rotr(brd.bitboards[10], 4);
+    u64 b6 = std::rotr(brd.bitboards[11], 5);
 
     // movemask simd? idk...
 
-    // u64 bits = b1 | (b2 << 1) | (b3 << 2) | (b4 << 3) | (b5 << 4) | (b6 <<
-    // 5);
-    u64 bits = b1 | (b2 >> 1) | (b3 >> 2) | (b4 >> 3) | (b5 >> 4) | (b6 >> 5);
+    u64 bits = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx) &
+               (0b111'111ull << (64 - 6));
     // TODO fix OOB access when bits == 0
     // auto idx = std::countr_zero(bits);
 
@@ -647,7 +647,10 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // with any random change to the code...
 
     // I think this works? although not guaranteed branchless...
+    // TODO add index system so we can just get indexes of things
+    // like named indexes
     auto idx = bits == 0 ? 13 : 6 + std::countl_zero(bits);
 
+    // (black)
     brd.bitboards[idx] &= ~new_knight;
 }
