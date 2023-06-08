@@ -91,13 +91,8 @@ constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
     'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
 
 struct Board {
-    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupied
+    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupancy
     // (white and black)
-
-    // TODO might actually be a good idea to represent these
-    // as individual u64, that way it ends up registers?
-    // although... I feel like it probably wouldn't help/fit
-    // since there's just too many bitboards to begin with
     u64 bitboards[12 + 3];
 
   public:
