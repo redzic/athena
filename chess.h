@@ -105,22 +105,22 @@ struct Board {
     }
 
     template <PieceColor c> constexpr u64& pawns() {
-        return bitboards[c * 6 + 0];
+        return bitboards[static_cast<u8>(c) * 6 + 0];
     }
     template <PieceColor c> constexpr u64& knights() {
-        return bitboards[c * 6 + 1];
+        return bitboards[static_cast<u8>(c) * 6 + 1];
     }
     template <PieceColor c> constexpr u64& rooks() {
-        return bitboards[c * 6 + 2];
+        return bitboards[static_cast<u8>(c) * 6 + 2];
     }
     template <PieceColor c> constexpr u64& bishops() {
-        return bitboards[c * 6 + 3];
+        return bitboards[static_cast<u8>(c) * 6 + 3];
     }
     template <PieceColor c> constexpr u64& queens() {
-        return bitboards[c * 6 + 4];
+        return bitboards[static_cast<u8>(c) * 6 + 4];
     }
     template <PieceColor c> constexpr u64& king() {
-        return bitboards[c * 6 + 5];
+        return bitboards[static_cast<u8>(c) * 6 + 5];
     }
 
     constexpr Board(u64 wp, u64 wn, u64 wr, u64 wb, u64 wq, u64 wk, u64 bp,
@@ -591,6 +591,10 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
 // TODO probably more convenient to have separate piecetype and color
 // for this instead of doing based on square enum
 
+// TODO most of the template instantiations are quite similar, is this
+// really necessary?
+// check if generated code is worse when passing color and type as runtime
+// arguments
 template <PieceColor c, PieceType t>
 constexpr void make_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
