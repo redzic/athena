@@ -8,6 +8,8 @@
 #include <iostream>
 #include <tuple>
 
+// TODO fix this since it doesn't actually do what it's supposed to
+// probably need another header of defines or something
 #if defined(__X86_64__)
 #include <immintrin.h>
 #endif
@@ -22,7 +24,20 @@ using i32 = std::int32_t;
 using i16 = std::int16_t;
 using i8 = std::int8_t;
 
+constexpr u64 RANK1 = 0b1111'1111ull;
+constexpr u64 RANK2 = RANK1 << 8;
+constexpr u64 RANK3 = RANK2 << 8;
+constexpr u64 RANK4 = RANK3 << 8;
+constexpr u64 RANK5 = RANK4 << 8;
+constexpr u64 RANK6 = RANK5 << 8;
+constexpr u64 RANK7 = RANK6 << 8;
+constexpr u64 RANK8 = RANK7 << 8;
+
 constexpr u64 msb = (1ull << 63);
+
+consteval u64 broadcast_byte(const u8 b) {
+    return 0x101010101010101ull * static_cast<u64>(b);
+}
 
 enum PieceColor : u8 { White = 0, Black = 1 };
 
@@ -36,6 +51,11 @@ constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
 struct Board {
     // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupied
     // (white and black)
+
+    // TODO might actually be a good idea to represent these
+    // as individual u64, that way it ends up registers?
+    // although... I feel like it probably wouldn't help/fit
+    // since there's just too many bitboards to begin with
     u64 bitboards[12 + 3];
 
   public:
@@ -125,7 +145,7 @@ struct Move {
 
 constexpr Move::Move(u8 from, u8 to, u8 tag) {
     // it's saying this was not constructed/initialized?
-    bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0b1111) >> 12);
+    bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0xf) >> 12);
 }
 
 void print_board(const Board& brd) {
@@ -292,8 +312,7 @@ constexpr u64 knight_attacks_bitwise(const Board& brd, const u8 sqr_idx) {
 
     u8 x_idx = sqr_idx % 8;
 
-    constexpr u64 FIX_OOB =
-        0b11110000'11110000'11110000'11110000'11110000'11110000'11110000'11110000;
+    constexpr u64 FIX_OOB = broadcast_byte(0xf0);
 
     if (x_idx <= 1) {
         attack_map &= FIX_OOB;
@@ -306,10 +325,6 @@ constexpr u64 knight_attacks_bitwise(const Board& brd, const u8 sqr_idx) {
 
     // return attack_map & (~(*brd.white()));
     return attack_map;
-}
-
-consteval u64 broadcast_byte(const u8 b) {
-    return 0x101010101010101ull * static_cast<u64>(b);
 }
 
 // assume white pieces
@@ -328,9 +343,9 @@ constexpr u64 knight_attacks_fast(const Board& brd, const u8 sqr_idx) {
     const u8 y = sqr_idx / 8;
 
     // auto r_shift = sqr_idx;
-    const u64 rmask = ((u64)((u8)(((u8)0b1111'1111) >> x))) * DUP8_BITS;
+    const u64 rmask = ((u64)((u8)(((u8)RANK1) >> x))) * DUP8_BITS;
 
-    const u64 lmask = ((u64)((u8)(((u8)0b1111'1111) << (7 - x)))) * DUP8_BITS;
+    const u64 lmask = ((u64)((u8)(((u8)RANK1) << (7 - x)))) * DUP8_BITS;
 
     u64 right_side = (N_ATTACK_RIGHT >> x) & rmask;
     u64 left_side = (N_ATTACK_LEFT << (7 - x)) & lmask;
@@ -440,6 +455,7 @@ void print_bits(auto x, bool print_32 = false) {
 }
 // void print_bits(auto x) { std::cout << std::bitset<8>(x) << '\n'; }
 
+// TODO apparently can be done with blsr instruction x86
 void bit_loop(u64 bits) {
     while (bits) {
         const auto lzcnt = std::countl_zero(bits);
@@ -508,6 +524,19 @@ u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
     u8 file1 = (u8)(ext8bits(occup_file1) & 0xff);
 
     return dep8bits(fix_bits_rank(file1, y_idx)) >> x_idx;
+}
+
+// TODO does C++ ensure l/r shift shifts into zeros?
+
+// TODO just template over piece color
+u64 wpawns_atk(u64 wp, u64 occup, u64 black) noexcept {
+    // TODO add sideway attacks
+    const u64 fwd_mvs = (wp << 8) | ((wp & RANK2) << 16);
+
+    u64 side_atks =
+        ((wp << 9) & broadcast_byte(1)) | ((wp << 7) & broadcast_byte(1 << 7));
+
+    return (fwd_mvs & ~occup) | (side_atks & black);
 }
 
 constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
@@ -590,16 +619,27 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     brd.occup() |= new_knight;
 
     // TODO simd?
-    u64 b1 = ((brd.bitboards[6] & new_knight) << to_idx) >> 63;
-    u64 b2 = ((brd.bitboards[7] & new_knight) << to_idx) >> 63;
-    u64 b3 = ((brd.bitboards[8] & new_knight) << to_idx) >> 63;
-    u64 b4 = ((brd.bitboards[9] & new_knight) << to_idx) >> 63;
-    u64 b5 = ((brd.bitboards[10] & new_knight) << to_idx) >> 63;
-    u64 b6 = ((brd.bitboards[11] & new_knight) << to_idx) >> 63;
+
+    // TODO I think could be optimized more...
+    // u64 b1 = ((brd.bitboards[6] & new_knight) << to_idx);
+    // u64 b2 = ((brd.bitboards[7] & new_knight) << to_idx);
+    // u64 b3 = ((brd.bitboards[8] & new_knight) << to_idx);
+    // u64 b4 = ((brd.bitboards[9] & new_knight) << to_idx);
+    // u64 b5 = ((brd.bitboards[10] & new_knight) << to_idx);
+    // u64 b6 = ((brd.bitboards[11] & new_knight) << to_idx);
+
+    u64 b1 = (brd.bitboards[6] << to_idx) & msb;
+    u64 b2 = (brd.bitboards[7] << to_idx) & msb;
+    u64 b3 = (brd.bitboards[8] << to_idx) & msb;
+    u64 b4 = (brd.bitboards[9] << to_idx) & msb;
+    u64 b5 = (brd.bitboards[10] << to_idx) & msb;
+    u64 b6 = (brd.bitboards[11] << to_idx) & msb;
 
     // movemask simd? idk...
 
-    u64 bits = b1 | (b2 << 1) | (b3 << 2) | (b4 << 3) | (b5 << 4) | (b6 << 5);
+    // u64 bits = b1 | (b2 << 1) | (b3 << 2) | (b4 << 3) | (b5 << 4) | (b6 <<
+    // 5);
+    u64 bits = b1 | (b2 >> 1) | (b3 >> 2) | (b4 >> 3) | (b5 >> 4) | (b6 >> 5);
     // TODO fix OOB access when bits == 0
     // auto idx = std::countr_zero(bits);
 
@@ -607,7 +647,7 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // with any random change to the code...
 
     // I think this works? although not guaranteed branchless...
-    auto idx = bits == 0 ? 13 : 6 + std::countr_zero(bits);
+    auto idx = bits == 0 ? 13 : 6 + std::countl_zero(bits);
 
     brd.bitboards[idx] &= ~new_knight;
 }

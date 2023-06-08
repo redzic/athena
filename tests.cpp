@@ -51,21 +51,33 @@ Board random_board() {
 
     assert(output_idx <= 64);
 
-    std::shuffle(brd.begin(), brd.end(), std::default_random_engine(0));
+    std::shuffle(brd.begin(), brd.end(),
+                 std::default_random_engine(std::random_device()()));
+
+    // for (auto i = 0; i < 8; i++) {
+    //     if (is_pawn(brd[i])) {
+    //         brd[i] = Square::Empty;
+    //     }
+    // }
+    // for (auto i = 56; i < 64; i++) {
+    //     if (is_pawn(brd[i])) {
+    //         brd[i] = Square::Empty;
+    //     }
+    // }
+
+    auto bb = mailbox_to_bitboard(brd);
 
     // remove pawns on 1st and 8th ranks
-    for (auto i = 0; i < 8; i++) {
-        if (is_pawn(brd[i])) {
-            brd[i] = Square::Empty;
-        }
-    }
-    for (auto i = 56; i < 64; i++) {
-        if (is_pawn(brd[i])) {
-            brd[i] = Square::Empty;
-        }
-    }
 
-    return mailbox_to_bitboard(brd);
+    u64 removed_pawns = (bb.bp() | bb.wp()) & (RANK1 | RANK8);
+
+    bb.white() &= ~(bb.wp() & (RANK1 | RANK8));
+    bb.black() &= ~(bb.bp() & (RANK1 | RANK8));
+    bb.wp() &= ~(RANK1 | RANK8);
+    bb.bp() &= ~(RANK1 | RANK8);
+    bb.occup() &= ~removed_pawns;
+
+    return bb;
 }
 
 bool bitboard_assert_eq(const Board& b1, const Board& b2) {
@@ -81,34 +93,14 @@ bool bitboard_assert_eq(const Board& b1, const Board& b2) {
 }
 
 int main(int argc, char** argv) {
-    while (1) {
-        auto brd = random_board();
+    // while (1) {
+    auto brd = random_board();
 
-        assert(is_board_valid_debug(brd));
+    assert(is_board_valid_debug(brd));
 
-        // find index of white knight (guaranteed to be exactly one)
-        auto wn_idx = std::countl_zero(brd.wn());
+    // print_bitboard(brd.wn());
+    print_board(brd);
+    // }
 
-        u64 attacks = knight_attacks(brd, wn_idx);
-        // bit_loop(attacks);
-
-        if (attacks) {
-            // TODO use bit_loop instead of just checking first value
-            auto att_idx = std::countl_zero(attacks);
-
-            auto brd_copy = brd;
-
-            make_wn_move(brd, wn_idx, att_idx);
-            make_wn_move_avx512(brd_copy, wn_idx, att_idx);
-
-            // failing test case :(
-            assert(brd == brd_copy);
-            // if (!bitboard_assert_eq(brd, brd_copy)) {
-            //     return 0;
-            // }
-        }
-
-        // print_bitboard(brd.wn());
-        print_board(brd);
-    }
+    print_bitboard(wpawns_atk(brd.wp(), brd.occup(), brd.black()));
 }

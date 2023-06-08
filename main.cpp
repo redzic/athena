@@ -18,5 +18,5 @@ int main(int argc, char** argv) {
 
     // print_bitboard(brd.wn());
     print_board(brd);
-    bit_loop(brd.wn());
+    // bit_loop(brd.wn());
 }
