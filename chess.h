@@ -601,8 +601,6 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
 
     const u64 old_knight = msb >> from_idx;
-    // unset bit (from square)
-    // might be possible to SIMD this
 
     // must update
     brd.wn() &= ~old_knight;
@@ -616,41 +614,32 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
     // must update
     brd.wn() |= new_knight;
     brd.white() |= new_knight;
-    // technically might not have to update this if capture
-    brd.occup() |= new_knight;
 
-    // TODO simd?
+    auto capture = brd.black() & new_knight;
 
-    // TODO I think could be optimized more...
+    if (capture) {
+        u64 b1 = brd.bitboards[6];
+        // wow... clang auto vectorizes below 4 rotates very smartly
+        u64 b2 = std::rotr(brd.bitboards[7], 1);
+        u64 b3 = std::rotr(brd.bitboards[8], 2);
+        u64 b4 = std::rotr(brd.bitboards[9], 3);
+        u64 b5 = std::rotr(brd.bitboards[10], 4);
+        u64 b6 = std::rotr(brd.bitboards[11], 5);
+
+        u64 bits = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx) &
+                   (0b111'111ull << (64 - 6));
+
+        auto idx = std::countl_zero(bits);
+
+        brd.bitboards[6 + idx] &= ~new_knight;
+    } else {
+        // no need to update if capture, since this bit was already set by old
+        // black piece
+        brd.occup() |= new_knight;
+    }
 
     // a valid bitboard shouldn't have overlapping bits
     // in these bits except for wn which is index 1
 
     // search is not necessary for no capture cah
-
-    u64 b1 = brd.bitboards[6];
-    // wow... clang auto vectorizes below 4 rotates very smartly
-    u64 b2 = std::rotr(brd.bitboards[7], 1);
-    u64 b3 = std::rotr(brd.bitboards[8], 2);
-    u64 b4 = std::rotr(brd.bitboards[9], 3);
-    u64 b5 = std::rotr(brd.bitboards[10], 4);
-    u64 b6 = std::rotr(brd.bitboards[11], 5);
-
-    // movemask simd? idk...
-
-    u64 bits = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx) &
-               (0b111'111ull << (64 - 6));
-    // TODO fix OOB access when bits == 0
-    // auto idx = std::countr_zero(bits);
-
-    // I think these tests need to be better since they're kinda passing
-    // with any random change to the code...
-
-    // I think this works? although not guaranteed branchless...
-    // TODO add index system so we can just get indexes of things
-    // like named indexes
-    auto idx = bits == 0 ? 13 : 6 + std::countl_zero(bits);
-
-    // (black)
-    brd.bitboards[idx] &= ~new_knight;
 }
