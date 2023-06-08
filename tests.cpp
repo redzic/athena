@@ -34,13 +34,18 @@ Board random_board() {
     Mailbox brd;
     std::fill(brd.begin(), brd.end(), Square::Empty);
 
-    std::tuple<Square, int> pieces[] = {
-        {Square::wp, randint(0, 8)}, {Square::wn, 1},
-        {Square::wr, randint(0, 2)}, {Square::wb, randint(0, 2)},
-        {Square::wq, randint(0, 1)}, {Square::wk, 1},
-        {Square::bp, randint(0, 8)}, {Square::bn, randint(0, 2)},
-        {Square::br, randint(0, 2)}, {Square::bb, randint(0, 2)},
-        {Square::bq, randint(0, 1)}, {Square::bk, 1}};
+    std::tuple<Square, int> pieces[] = {{Square::WhitePawn, randint(0, 8)},
+                                        {Square::WhiteKnight, 1},
+                                        {Square::WhiteRook, randint(0, 2)},
+                                        {Square::WhiteBishop, randint(0, 2)},
+                                        {Square::WhiteQueen, randint(0, 1)},
+                                        {Square::WhiteKing, 1},
+                                        {Square::BlackPawn, randint(0, 8)},
+                                        {Square::BlackKnight, randint(0, 2)},
+                                        {Square::BlackRook, randint(0, 2)},
+                                        {Square::BlackBishop, randint(0, 2)},
+                                        {Square::BlackQueen, randint(0, 1)},
+                                        {Square::BlackKing, 1}};
 
     auto output_idx = 0;
 

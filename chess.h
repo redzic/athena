@@ -58,7 +58,21 @@ constexpr PieceColor operator!(PieceColor orig) {
     return orig;
 }
 
-enum Square : u8 { wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, Empty };
+enum Square : u8 {
+    WhitePawn,
+    WhiteKnight,
+    WhiteRook,
+    WhiteBishop,
+    WhiteQueen,
+    WhiteKing,
+    BlackPawn,
+    BlackKnight,
+    BlackRook,
+    BlackBishop,
+    BlackQueen,
+    BlackKing,
+    Empty
+};
 
 enum PieceType : u8 { Pawn, Knight, Rook, Bishop, Queen, King };
 
@@ -70,7 +84,7 @@ constexpr bool is_black(const PieceColor pc) noexcept {
 }
 
 constexpr bool is_pawn(const Square sqr) noexcept {
-    return (sqr == Square::wp) || (sqr == Square::bp);
+    return (sqr == Square::WhitePawn) || (sqr == Square::BlackPawn);
 }
 
 constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
@@ -149,8 +163,8 @@ struct Board {
         bitboards[9] = bb;
         bitboards[10] = bq;
         bitboards[11] = bk;
-        u64 white = (wp | wn | wr | wb | wq | wk);
-        u64 black = (bp | bn | br | bb | bq | bk);
+        u64 white = wp | wn | wr | wb | wq | wk;
+        u64 black = bp | bn | br | bb | bq | bk;
         bitboards[12] = white;
         bitboards[13] = black;
         bitboards[14] = white | black;
