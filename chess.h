@@ -399,31 +399,6 @@ constexpr bool is_board_valid_debug(const Board brd) {
 // checks if there are multiple bitboards with the same bits set
 // for any of the squares
 
-// TODO replace with simpler algorithm (running bitset of occupied bits)...
-constexpr bool is_board_valid(const Board brd) {
-    constexpr auto evalbits = [](u64 a, u64 b, u64 c, u64 d) {
-        u64 a1 = c | (a & b) | (a & d) | (b & d);
-        u64 a2 = a | b | d;
-
-        return std::make_tuple(a1, a2);
-    };
-
-    auto [a1, a2] = evalbits(0, brd.bitboards[0], 0, brd.bitboards[1]);
-    auto [b1, b2] = evalbits(0, brd.bitboards[2], 0, brd.bitboards[3]);
-    auto [c1, c2] = evalbits(0, brd.bitboards[4], 0, brd.bitboards[5]);
-    auto [d1, d2] = evalbits(0, brd.bitboards[6], 0, brd.bitboards[7]);
-    auto [e1, e2] = evalbits(0, brd.bitboards[8], 0, brd.bitboards[9]);
-    auto [f1, f2] = evalbits(0, brd.bitboards[10], 0, brd.bitboards[11]);
-
-    auto [x1, x2] = evalbits(a1, a2, b1, b2);
-    auto [y1, y2] = evalbits(c1, c2, d1, d2);
-    auto [z1, z2] = evalbits(e1, e2, f1, f2);
-    auto [p1, p2] = evalbits(x1, x2, y1, y2);
-    auto [q1, q2] = evalbits(p1, p2, z1, z2);
-
-    return (q1 & q2) == 0;
-}
-
 // bro how the heck does this work...
 constexpr u64 knight_attacks_multiple(const u64 knights) {
     u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
@@ -584,6 +559,7 @@ constexpr void make_wn_move(Board& brd, const u8 from_idx, const u8 to_idx) {
         auto idx = std::countl_zero(bits);
 
         brd.bitboards[6 + idx] &= ~new_knight;
+        brd.black() &= ~new_knight;
     } else {
         // no need to update if capture, since this bit was already set by old
         // black piece
