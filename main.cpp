@@ -6,7 +6,7 @@ int main(int argc, char** argv) {
     auto brd = Board::starting_position();
 
     // brd.wn() |= msb >> n_idx;
-    assert(is_board_valid(brd));
+    assert(is_board_valid_debug(brd));
 
     // print_board(brd);
 
