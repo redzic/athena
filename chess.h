@@ -45,7 +45,7 @@ constexpr u64 RANK6 = RANK5 << 8;
 constexpr u64 RANK7 = RANK6 << 8;
 constexpr u64 RANK8 = RANK7 << 8;
 
-constexpr u64 MSB64 = (1ull << 63);
+constexpr u64 MSB64 = 1ull << 63;
 
 consteval u64 broadcast_byte(const u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
@@ -221,7 +221,7 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
     bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0xf) >> 12);
 }
 
-_NoInline constexpr void print_board(const Board& brd) {
+_NoInline void print_board(const Board& brd) {
     std::array<Square, 64> array_brd;
     std::fill(array_brd.begin(), array_brd.end(), Square::Empty);
 
@@ -249,7 +249,7 @@ _NoInline constexpr void print_board(const Board& brd) {
 
     std::array<char, NUM_CHARS> board_str;
 
-    constexpr std::string_view str_row =
+    static constexpr std::string_view str_row =
         "+-+-+-+-+-+-+-+-+\n| | | | | | | | |\n";
 
     static_assert(str_row.size() == (2 * ROW_LEN));
@@ -281,7 +281,7 @@ _NoInline constexpr void print_board(const Board& brd) {
     std::cout << std::string_view(board_str.data(), NUM_CHARS);
 }
 
-_NoInline constexpr void print_bitboard(u64 bitboard) {
+_NoInline void print_bitboard(u64 bitboard) {
     for (auto i = 0; i < 8; i++) {
         for (auto j = 0; j < 8; j++) {
             auto bit = ((bitboard << j) >> 63) & 1;
