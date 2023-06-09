@@ -333,7 +333,7 @@ consteval std::array<u64, 64> build_knight_table() {
     return table;
 }
 
-constinit static const auto KNIGHT_ATTACK_TABLE = build_knight_table();
+static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 
 // assume white pieces
 
