@@ -167,7 +167,7 @@ struct Board {
         // TODO add debug_assert for last elements
 
         if (std::is_constant_evaluated()) {
-            for (auto i = 0; i < 12; i++) {
+            for (size_t i = 0; i < 12; i++) {
                 if (this->bitboards[i] != other.bitboards[i]) {
                     return false;
                 }
@@ -250,14 +250,14 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
 
     static_assert(str_row.size() == (2 * ROW_LEN));
 
-    for (auto i = 0; i < 8; i++) {
+    for (size_t i = 0; i < 8; i++) {
         std::memcpy(board_str.data() + (i * str_row.size()), str_row.data(),
                     str_row.size());
     }
     std::memcpy(board_str.data() + (8 * str_row.size()), str_row.data(),
                 ROW_LEN);
 
-    for (auto i = 0; i < 12; i++) {
+    for (size_t i = 0; i < 12; i++) {
         // TODO figure out how to move this into its own iterator
         // preferably with zero-cost abstraction
         for (auto bb = brd.bitboards[i]; bb;) {
@@ -267,7 +267,7 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
         }
     }
 
-    for (auto i = 0; i < 64; i++) {
+    for (size_t i = 0; i < 64; i++) {
         auto y_idx = 1 + 2 * (i / 8);
         auto x_idx = 1 + 2 * (i % 8);
 
@@ -278,8 +278,8 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
 }
 
 [[clang::minsize]] _NoInline void print_bitboard(u64 bitboard) {
-    for (auto i = 0; i < 8; i++) {
-        for (auto j = 0; j < 8; j++) {
+    for (u32 i = 0; i < 8; i++) {
+        for (u32 j = 0; j < 8; j++) {
             auto bit = ((bitboard << j) >> 63) & 1;
             putchar('0' + bit);
             // if (j != 7)
@@ -296,12 +296,12 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
 consteval u64 knight_attack_map(const u8 sqr_idx) {
     u64 attack_map = 0;
 
-    const std::tuple<int, int> knight_offsets[8] = {
+    constexpr std::tuple<int, int> knight_offsets[8] = {
         {1, 2}, {2, 1}, {-1, 2}, {-2, 1}, {1, -2}, {2, -1}, {-1, -2}, {-2, -1},
     };
 
-    const int x_idx = sqr_idx % 8;
-    const int y_idx = sqr_idx / 8;
+    const auto x_idx = sqr_idx % 8;
+    const auto y_idx = sqr_idx / 8;
 
     for (const auto& [dx, dy] : knight_offsets) {
         const int new_x = x_idx + dx;
@@ -319,10 +319,7 @@ consteval u64 knight_attack_map(const u8 sqr_idx) {
 consteval std::array<u64, 64> build_knight_table() {
     std::array<u64, 64> table;
 
-    // should these be size_t? does that change codegen?
-    // when things are statically known... (not constexpr just statically known
-    // upper bound)
-    for (auto i = 0; i < 64; i++) {
+    for (size_t i = 0; i < 64; i++) {
         table[i] = knight_attack_map(i);
     }
 
@@ -395,7 +392,7 @@ constexpr bool is_board_valid_debug(Board brd) {
 // for any of the squares
 
 // bro how the heck does this work...
-constexpr u64 knight_attacks_multiple(const u64 knights) {
+constexpr u64 knight_attacks_multiple(u64 knights) {
     u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
     u64 l2 = (knights >> 2) & 0x3f3f3f3f3f3f3f3full;
     u64 r1 = (knights << 1) & 0xfefefefefefefefeull;
