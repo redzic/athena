@@ -76,14 +76,10 @@ enum Square : u8 {
 
 enum PieceType : u8 { Pawn, Knight, Rook, Bishop, Queen, King };
 
-constexpr bool is_white(const PieceColor pc) noexcept {
-    return pc == PieceColor::White;
-}
-constexpr bool is_black(const PieceColor pc) noexcept {
-    return pc == PieceColor::Black;
-}
+constexpr bool is_white(const PieceColor pc) { return pc == PieceColor::White; }
+constexpr bool is_black(const PieceColor pc) { return pc == PieceColor::Black; }
 
-constexpr bool is_pawn(const Square sqr) noexcept {
+constexpr bool is_pawn(const Square sqr) {
     return (sqr == Square::WhitePawn) || (sqr == Square::BlackPawn);
 }
 
@@ -221,7 +217,7 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
     bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0xf) >> 12);
 }
 
-_NoInline void print_board(const Board& brd) {
+[[clang::minsize]] _NoInline void print_board(const Board& brd) {
     std::array<Square, 64> array_brd;
     std::fill(array_brd.begin(), array_brd.end(), Square::Empty);
 
@@ -281,7 +277,7 @@ _NoInline void print_board(const Board& brd) {
     std::cout << std::string_view(board_str.data(), NUM_CHARS);
 }
 
-_NoInline void print_bitboard(u64 bitboard) {
+[[clang::minsize]] _NoInline void print_bitboard(u64 bitboard) {
     for (auto i = 0; i < 8; i++) {
         for (auto j = 0; j < 8; j++) {
             auto bit = ((bitboard << j) >> 63) & 1;
@@ -340,8 +336,7 @@ static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 // TODO fix const correctness... ugh...
 // kinda inconvenient but whatever.
 template <PieceColor c>
-_ForceInline constexpr u64 knight_attacks(Board& brd,
-                                          const u8 sqr_idx) noexcept {
+_ForceInline constexpr u64 knight_attacks(Board& brd, const u8 sqr_idx) {
     return KNIGHT_ATTACK_TABLE[sqr_idx] & ~brd.color<c>();
 }
 
@@ -511,7 +506,7 @@ constexpr u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
 // TODO just template over piece color
 // TODO make sure everything is optimized out properly
 template <PieceColor c>
-constexpr u64 pawns_atk(u64 your_pawns, u64 occup, u64 enemy) noexcept {
+constexpr u64 pawns_atk(u64 your_pawns, u64 occup, u64 enemy) {
     // TODO add sideway attacks
     const u64 fwd_mvs_white = (your_pawns << 8) | ((your_pawns & RANK2) << 16);
     const u64 fwd_mvs_black = (your_pawns >> 8) | ((your_pawns & RANK7) >> 16);
@@ -527,7 +522,7 @@ constexpr u64 pawns_atk(u64 your_pawns, u64 occup, u64 enemy) noexcept {
     return (fwd_mvs & ~occup) | (side_atks & enemy);
 }
 
-constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) noexcept {
+constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) {
     const u8 x_idx = sqr_idx % 8;
     const u8 y_idx = sqr_idx / 8;
 
