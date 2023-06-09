@@ -51,7 +51,7 @@ consteval u64 broadcast_byte(const u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
 }
 
-enum PieceColor : u8 { White = 0, Black = 1 };
+enum PieceColor : u8 { White, Black };
 
 constexpr PieceColor operator!(PieceColor orig) {
     orig = static_cast<PieceColor>(!static_cast<u8>(orig));
@@ -87,7 +87,7 @@ constexpr bool is_pawn(const Square sqr) noexcept {
     return (sqr == Square::WhitePawn) || (sqr == Square::BlackPawn);
 }
 
-constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
+static constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
     'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
 
 struct Board {
@@ -185,20 +185,20 @@ struct Board {
 };
 
 constexpr Board Board::starting_position() {
-    u64 wp = ((1ull << 8) - 1) << 8;
-    u64 bp = ((1ull << 8) - 1) << (56 - 8);
-    u64 wr = 0b10000001ull;
-    u64 br = 0b10000001ull << 56;
-    u64 wn = 0b01000010ull;
-    u64 bn = 0b01000010ull << 56;
-    u64 wb = 0b00100100ull;
-    u64 bb = 0b00100100ull << 56;
-    u64 wq = 0b00010000ull;
-    u64 bq = 0b00010000ull << 56;
-    u64 wk = 0b00001000ull;
-    u64 bk = 0b00001000ull << 56;
+    constexpr u64 wp = RANK2;
+    constexpr u64 bp = RANK7;
+    constexpr u64 wr = 0b10000001ull;
+    constexpr u64 br = 0b10000001ull << 56;
+    constexpr u64 wn = 0b01000010ull;
+    constexpr u64 bn = 0b01000010ull << 56;
+    constexpr u64 wb = 0b00100100ull;
+    constexpr u64 bb = 0b00100100ull << 56;
+    constexpr u64 wq = 0b00010000ull;
+    constexpr u64 bq = 0b00010000ull << 56;
+    constexpr u64 wk = 0b00001000ull;
+    constexpr u64 bk = 0b00001000ull << 56;
 
-    Board b(wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk);
+    constexpr Board b(wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk);
 
     return b;
 }
