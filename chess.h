@@ -623,20 +623,11 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
 }
 
 template <PieceColor c> constexpr void undo_move(Board& brd, UndoTag<c> undo) {
-    // brd.bitboards[c * 6 + undo.piece_type] ^= MSB64 >> undo.from;
-    // brd.bitboards[c * 6 + undo.piece_type] ^= MSB64 >> undo.to;
-
     u64 switcher = (MSB64 >> undo.from) ^ (MSB64 >> undo.to);
     brd.bitboards[c * 6 + undo.piece_type] ^= switcher;
     brd.bitboards[12 + c] ^= switcher;
 
     if (undo.capture) {
-        // std::cout << "marked as "
-        // puts("marked as capture");
-        // std::cout << "capture_piece_type: "
-        //           << CHAR_PIECE_LOOKUP[undo.capture_piece_type] << '\n';
-
-        // std::cout << undo.to << '\n';
 
         brd.bitboards[(!c) * 6 + undo.capture_piece_type] ^= MSB64 >> undo.to;
         // other color
