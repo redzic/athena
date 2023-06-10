@@ -14,11 +14,20 @@
 #include <immintrin.h>
 #endif
 
+#define _ForceInline __attribute__((always_inline)) inline
+#define _NoInline __attribute__((noinline))
+
 // clang does not support attribute assume :(
 #if defined(__clang__)
-#define _ASSUME(cond) __builtin_assume(cond);
+#define __assume(cond) __builtin_assume(cond);
+#define _OptSize [[clang::minsize]]
 #elif defined(__GNUC__)
-#define _ASSUME(cond) [[assume(cond)]];
+#define __assume(cond)                                                         \
+    do {                                                                       \
+        if (!(cond))                                                           \
+            __builtin_unreachable();                                           \
+    } while (0)
+#define _OptSize __attribute__((optimize("Os")))
 #endif
 
 // TODO check best practice with naming conventions on these defines
@@ -35,9 +44,6 @@ static constexpr std::array<std::string_view, 64> square_to_coords = {
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
 };
 /* clang-format on */
-
-#define _ForceInline __attribute__((always_inline)) inline
-#define _NoInline __attribute__((noinline))
 
 using u64 = std::uint64_t;
 using u32 = std::uint32_t;
@@ -127,30 +133,26 @@ struct Board {
     constexpr u64& occup() { return bitboards[14]; }
 
     template <PieceColor c, PieceType t> constexpr u64& board() {
-        return bitboards[static_cast<u8>(c) * 6 + static_cast<u8>(t)];
+        return bitboards[c * 6 + t];
     }
 
-    template <PieceColor c> constexpr u64& color() {
-        return bitboards[12 + static_cast<u8>(c)];
-    }
+    template <PieceColor c> constexpr u64& color() { return bitboards[12 + c]; }
 
-    template <PieceColor c> constexpr u64& pawns() {
-        return bitboards[static_cast<u8>(c) * 6];
-    }
+    template <PieceColor c> constexpr u64& pawns() { return bitboards[c * 6]; }
     template <PieceColor c> constexpr u64& knights() {
-        return bitboards[static_cast<u8>(c) * 6 + 1];
+        return bitboards[c * 6 + 1];
     }
     template <PieceColor c> constexpr u64& rooks() {
-        return bitboards[static_cast<u8>(c) * 6 + 2];
+        return bitboards[c * 6 + 2];
     }
     template <PieceColor c> constexpr u64& bishops() {
-        return bitboards[static_cast<u8>(c) * 6 + 3];
+        return bitboards[c * 6 + 3];
     }
     template <PieceColor c> constexpr u64& queens() {
-        return bitboards[static_cast<u8>(c) * 6 + 4];
+        return bitboards[c * 6 + 4];
     }
     template <PieceColor c> constexpr u64& king() {
-        return bitboards[static_cast<u8>(c) * 6 + 5];
+        return bitboards[c * 6 + 5];
     }
 
     constexpr Board(u64 wp, u64 wn, u64 wr, u64 wb, u64 wq, u64 wk, u64 bp,
@@ -215,24 +217,22 @@ constexpr Board Board::starting_position() {
 constexpr u8 MASK6 = (1 << 6) - 1;
 
 struct Move {
-    u16 bits;
 
-  public:
-    constexpr u8 from_idx() { return bits & MASK6; }
-    constexpr u8 to_idx() { return (bits << 6) & MASK6; }
-    constexpr u8 tag_bits() { return (bits << 12); }
+    u16 from_idx : 6;
+    u16 to_idx : 6;
+    u16 tag_bits : 4;
 
-    constexpr Move(u8 from, u8 to, u8 tag);
+    // constexpr u8 from_idx() { return bits & MASK6; }
+    // constexpr u8 to_idx() { return (bits << 6) & MASK6; }
+    // constexpr u8 tag_bits() { return (bits << 12); }
+
+    // constexpr Move(u8 from, u8 to, u8 tag);
 };
 
-constexpr Move::Move(u8 from, u8 to, u8 tag) {
-    // it's saying this was not constructed/initialized?
-    bits = (from & MASK6) | ((to & MASK6) >> 6) | ((tag & 0xf) >> 12);
-}
-
-[[clang::minsize]] _NoInline void print_board(const Board& brd) {
+_OptSize _NoInline void print_board(const Board& brd) {
     std::array<Square, 64> array_brd;
-    std::fill(array_brd.begin(), array_brd.end(), Square::Empty);
+    static_assert(sizeof(Square) == 1);
+    memset(array_brd.data(), Square::Empty, 64);
 
     // 8 spaces + 9 bars + 1 newline character
     constexpr auto ROW_LEN = 8 + 9 + 1;
@@ -290,7 +290,7 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
     std::cout << std::string_view(board_str.data(), NUM_CHARS);
 }
 
-[[clang::minsize]] _NoInline void print_bitboard(u64 bitboard) {
+_OptSize _NoInline void print_bitboard(u64 bitboard) {
     for (u32 i = 0; i < 8; i++) {
         for (u32 j = 0; j < 8; j++) {
             auto bit = ((bitboard << j) >> 63) & 1;
@@ -539,6 +539,57 @@ constexpr u64 rook_attacks_fixed(u64 occup, u8 sqr_idx) {
     const u8 shift = 8 * (7 - y_idx);
     return ((u64)(fix_bits_rank(occup >> shift, x_idx)) << shift) ^
            fix_bits_file(occup, sqr_idx);
+}
+
+struct UndoTag {
+    u32 data;
+};
+
+template <PieceColor c, PieceType t>
+constexpr void make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
+    // TODO maybe add debug_asserts to check for self-capture
+    constexpr PieceColor to_mv = c;
+    constexpr PieceColor enemy = !to_mv;
+
+    const u64 old_piece = MSB64 >> from_idx;
+
+    // we could also xor here with old_piece (not negated, these are bits
+    // are always set in a valid board), but it ends up being slightly
+    // more instructions on x86 on clang for some reason.
+    brd.board<c, t>() &= ~old_piece;
+    brd.color<to_mv>() &= ~old_piece;
+    brd.occup() &= ~old_piece;
+
+    const u64 new_piece = MSB64 >> to_idx;
+
+    brd.board<c, t>() |= new_piece;
+    brd.color<to_mv>() |= new_piece;
+
+    auto capture = brd.color<enemy>() & new_piece;
+
+    if (capture) {
+        auto b1 = brd.pawns<enemy>() & new_piece;
+        auto b2 = std::rotr(brd.knights<enemy>() & new_piece, 1);
+        auto b3 = std::rotr(brd.rooks<enemy>() & new_piece, 2);
+        auto b4 = std::rotr(brd.bishops<enemy>() & new_piece, 3);
+        auto b5 = std::rotr(brd.queens<enemy>() & new_piece, 4);
+        auto b6 = std::rotr(brd.king<enemy>() & new_piece, 5);
+
+        // perhaps this can be explicitly vectorized with shift+movemask
+        // (extract msb)
+
+        auto b7 = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx);
+        __assume(b7 != 0);
+        auto idx = std::countl_zero(b7);
+
+        // could also xor? might be easier ig
+        brd.bitboards[(!c) * 6 + idx] ^= new_piece;
+        brd.color<enemy>() ^= new_piece;
+    } else {
+        // no need to update if capture, since this bit was already set by old
+        // enemy piece
+        brd.occup() |= new_piece;
+    }
 }
 
 // TODO most of the template instantiations are quite similar, is this
