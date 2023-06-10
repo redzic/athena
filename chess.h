@@ -272,8 +272,8 @@ _OptSize _NoInline void print_board(const Board& brd) {
     }
 
     for (size_t i = 0; i < 64; i++) {
-        auto y_idx = 1 + 2 * (i / 8);
-        auto x_idx = 1 + 2 * (i % 8);
+        size_t y_idx = 1 + 2 * (i / 8);
+        size_t x_idx = 1 + 2 * (i % 8);
 
         board_str[ROW_LEN * y_idx + x_idx] = CHAR_PIECE_LOOKUP[array_brd[i]];
     }
@@ -292,7 +292,7 @@ _OptSize _NoInline void print_bitboard(u64 bitboard) {
 
         bitboard <<= 8;
 
-        puts("");
+        putchar('\n');
     }
 }
 
@@ -532,12 +532,28 @@ constexpr u64 rook_attacks_fixed(u64 occup, u8 sqr_idx) {
            fix_bits_file(occup, sqr_idx);
 }
 
-struct UndoTag {
-    u32 data;
+// TODO remove _idx from obvious stuff
+
+// Tag that goes along move
+// c = color of move made
+template <PieceColor c> struct UndoTag {
+    // from perspective of move undoer; i.e., move from->to when undoing
+    u32 from : 3;
+    u32 to : 3;
+
+    // ceil(log(6, 2))
+    // technically not needed but saves us from redoing the same work
+    // to figure out what the piece type of the moved piece was
+    u32 piece_type : 3;
+
+    // boolean flag, was there a capture
+    u32 capture : 1;
+    u32 capture_piece_type : 3;
+    u32 capture_idx : 3;
 };
 
 template <PieceColor c, PieceType t>
-constexpr void make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
+constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
@@ -571,15 +587,34 @@ constexpr void make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
 
         auto b7 = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx);
         __assume(b7 != 0);
-        auto idx = std::countl_zero(b7);
+        auto capture_idx = std::countl_zero(b7);
 
         // could also xor? might be easier ig
-        brd.bitboards[(!c) * 6 + idx] ^= new_piece;
+        brd.bitboards[(!c) * 6 + capture_idx] ^= new_piece;
         brd.color<enemy>() ^= new_piece;
+
+        // TODO find some kind of way for compiler to warn about
+        // potentially returning nothing
+
+        return UndoTag<c>{
+            .from = from_idx,
+            .to = to_idx,
+            .piece_type = t,
+            .capture = 1,
+            .capture_piece_type = capture_idx,
+            .capture_idx = to_idx,
+        };
     } else {
         // no need to update if capture, since this bit was already set by old
         // enemy piece
         brd.occup() |= new_piece;
+
+        return UndoTag<c>{
+            .from = from_idx,
+            .to = to_idx,
+            .piece_type = t,
+            .capture = 0,
+        };
     }
 }
 
