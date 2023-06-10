@@ -132,6 +132,9 @@ struct Board {
     constexpr u64& black() { return bitboards[13]; }
     constexpr u64& occup() { return bitboards[14]; }
 
+    // TODO make these not templates and runtime arguments instead,
+    // they should be optimized away anyway (hopefully).
+
     template <PieceColor c, PieceType t> constexpr u64& board() {
         return bitboards[c * 6 + t];
     }
@@ -537,9 +540,9 @@ constexpr u64 rook_attacks_fixed(u64 occup, u8 sqr_idx) {
 // Tag that goes along move
 // c = color of move made
 template <PieceColor c> struct UndoTag {
-    // from perspective of move undoer; i.e., move from->to when undoing
-    u32 from : 3;
-    u32 to : 3;
+    // from perspective of move doer; i.e., move to->from when undoing
+    u32 from : 6;
+    u32 to : 6;
 
     // ceil(log(6, 2))
     // technically not needed but saves us from redoing the same work
@@ -549,7 +552,6 @@ template <PieceColor c> struct UndoTag {
     // boolean flag, was there a capture
     u32 capture : 1;
     u32 capture_piece_type : 3;
-    u32 capture_idx : 3;
 };
 
 template <PieceColor c, PieceType t>
@@ -604,7 +606,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
             .piece_type = t,
             .capture = 1,
             .capture_piece_type = capture_idx,
-            .capture_idx = to_idx,
+            // hmm... isn't the last field just like not necessary?
         };
     } else {
         // no need to update if capture, since this bit was already set by old
@@ -617,6 +619,31 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
             .piece_type = t,
             .capture = 0,
         };
+    }
+}
+
+template <PieceColor c> constexpr void undo_move(Board& brd, UndoTag<c> undo) {
+    // brd.bitboards[c * 6 + undo.piece_type] ^= MSB64 >> undo.from;
+    // brd.bitboards[c * 6 + undo.piece_type] ^= MSB64 >> undo.to;
+
+    u64 switcher = (MSB64 >> undo.from) ^ (MSB64 >> undo.to);
+    brd.bitboards[c * 6 + undo.piece_type] ^= switcher;
+    brd.bitboards[12 + c] ^= switcher;
+
+    if (undo.capture) {
+        // std::cout << "marked as "
+        // puts("marked as capture");
+        // std::cout << "capture_piece_type: "
+        //           << CHAR_PIECE_LOOKUP[undo.capture_piece_type] << '\n';
+
+        // std::cout << undo.to << '\n';
+
+        brd.bitboards[(!c) * 6 + undo.capture_piece_type] ^= MSB64 >> undo.to;
+        // other color
+        brd.bitboards[12 + (!c)] ^= MSB64 >> undo.to;
+        brd.occup() ^= MSB64 >> undo.from;
+    } else {
+        brd.occup() ^= switcher;
     }
 }
 
