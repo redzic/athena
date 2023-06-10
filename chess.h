@@ -214,19 +214,10 @@ constexpr Board Board::starting_position() {
     return b;
 }
 
-constexpr u8 MASK6 = (1 << 6) - 1;
-
 struct Move {
-
-    u16 from_idx : 6;
-    u16 to_idx : 6;
+    u16 from_idx : 3;
+    u16 to_idx : 3;
     u16 tag_bits : 4;
-
-    // constexpr u8 from_idx() { return bits & MASK6; }
-    // constexpr u8 to_idx() { return (bits << 6) & MASK6; }
-    // constexpr u8 tag_bits() { return (bits << 12); }
-
-    // constexpr Move(u8 from, u8 to, u8 tag);
 };
 
 _OptSize _NoInline void print_board(const Board& brd) {
