@@ -575,19 +575,21 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
     auto capture = brd.color<enemy>() & new_piece;
 
     if (capture) {
-        auto b1 = brd.pawns<enemy>() & new_piece;
-        auto b2 = std::rotr(brd.knights<enemy>() & new_piece, 1);
-        auto b3 = std::rotr(brd.rooks<enemy>() & new_piece, 2);
-        auto b4 = std::rotr(brd.bishops<enemy>() & new_piece, 3);
-        auto b5 = std::rotr(brd.queens<enemy>() & new_piece, 4);
-        auto b6 = std::rotr(brd.king<enemy>() & new_piece, 5);
+        u64 b1 = brd.pawns<enemy>() & new_piece;
+        u64 b2 = std::rotr(brd.knights<enemy>() & new_piece, 1);
+        u64 b3 = std::rotr(brd.rooks<enemy>() & new_piece, 2);
+        u64 b4 = std::rotr(brd.bishops<enemy>() & new_piece, 3);
+        u64 b5 = std::rotr(brd.queens<enemy>() & new_piece, 4);
+        u64 b6 = std::rotr(brd.king<enemy>() & new_piece, 5);
 
         // perhaps this can be explicitly vectorized with shift+movemask
         // (extract msb)
 
-        auto b7 = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx);
+        u64 b7 = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx);
+
+        // assuming valid board, this should contain exactly 1 bit
         __assume(b7 != 0);
-        auto capture_idx = std::countl_zero(b7);
+        u32 capture_idx = std::countl_zero(b7);
 
         // could also xor? might be easier ig
         brd.bitboards[(!c) * 6 + capture_idx] ^= new_piece;
