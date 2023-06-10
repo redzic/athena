@@ -60,7 +60,7 @@ constexpr u64 RANK8 = RANK7 << 8;
 
 constexpr u64 MSB64 = 1ull << 63;
 
-consteval u64 broadcast_byte(const u8 b) {
+consteval u64 broadcast_byte(u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
 }
 
@@ -306,7 +306,7 @@ constexpr Move::Move(u8 from, u8 to, u8 tag) {
 }
 
 // simple but slow implementation, only used to build table at compile-time
-consteval u64 knight_attack_map(const u8 sqr_idx) {
+consteval u64 knight_attack_map(u8 sqr_idx) {
     u64 attack_map = 0;
 
     constexpr std::tuple<int, int> knight_offsets[8] = {
@@ -346,7 +346,7 @@ static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 // TODO fix const correctness... ugh...
 // kinda inconvenient but whatever.
 template <PieceColor c>
-_ForceInline constexpr u64 knight_attacks(Board& brd, const u8 sqr_idx) {
+_ForceInline constexpr u64 knight_attacks(Board& brd, u8 sqr_idx) {
     return KNIGHT_ATTACK_TABLE[sqr_idx] & ~brd.color<c>();
 }
 
@@ -415,7 +415,7 @@ constexpr u64 knight_attacks_multiple(u64 knights) {
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
 
-constexpr u64 rook_attacks(const u8 sqr_idx) {
+constexpr u64 rook_attacks(u8 sqr_idx) {
     // TODO make some kind of macro or function or something for this?
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
@@ -452,7 +452,7 @@ constexpr void bit_loop(u64 bits) {
     }
 }
 
-constexpr u8 fix_bits_rank(u8 occup, const u8 idx) {
+constexpr u8 fix_bits_rank(u8 occup, u8 idx) {
     occup &= ~((1 << 7) >> idx);
 
     const u16 bit1 = (1 << 7) >> idx;
@@ -501,7 +501,7 @@ constexpr u64 dep8bits(u64 x) {
 }
 
 // row_idx is 0-7
-constexpr u64 fix_bits_file(u64 occup, const u8 sqr_idx) {
+constexpr u64 fix_bits_file(u64 occup, u8 sqr_idx) {
     const u8 x_idx = sqr_idx % 8;
     const u8 y_idx = sqr_idx / 8;
 
@@ -532,7 +532,7 @@ constexpr u64 pawns_atk(u64 your_pawns, u64 occup, u64 enemy) {
     return (fwd_mvs & ~occup) | (side_atks & enemy);
 }
 
-constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) {
+constexpr u64 rook_attacks_fixed(u64 occup, u8 sqr_idx) {
     const u8 x_idx = sqr_idx % 8;
     const u8 y_idx = sqr_idx / 8;
 
@@ -546,7 +546,7 @@ constexpr u64 rook_attacks_fixed(u64 occup, const u8 sqr_idx) {
 // should check if generated code is worse when passing color and type as
 // runtime arguments
 template <PieceColor c, PieceType t>
-constexpr void make_move(Board& brd, const u8 from_idx, const u8 to_idx) {
+constexpr void make_move(Board& brd, u8 from_idx, u8 to_idx) {
     // TODO maybe add debug_asserts to check for self-capture
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
