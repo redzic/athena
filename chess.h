@@ -593,12 +593,8 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
         __assume(b7 != 0);
         u32 capture_idx = std::countl_zero(b7);
 
-        // could also xor? might be easier ig
         brd.bitboards[(!c) * 6 + capture_idx] ^= new_piece;
         brd.color<enemy>() ^= new_piece;
-
-        // TODO find some kind of way for compiler to warn about
-        // potentially returning nothing
 
         return UndoTag<c>{
             .from = from_idx,
@@ -606,7 +602,6 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
             .piece_type = t,
             .capture = 1,
             .capture_piece_type = capture_idx,
-            // hmm... isn't the last field just like not necessary?
         };
     } else {
         // no need to update if capture, since this bit was already set by old
@@ -628,7 +623,6 @@ template <PieceColor c> constexpr void undo_move(Board& brd, UndoTag<c> undo) {
     brd.bitboards[12 + c] ^= switcher;
 
     if (undo.capture) {
-
         brd.bitboards[(!c) * 6 + undo.capture_piece_type] ^= MSB64 >> undo.to;
         // other color
         brd.bitboards[12 + (!c)] ^= MSB64 >> undo.to;
