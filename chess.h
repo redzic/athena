@@ -516,8 +516,11 @@ constexpr u64 fix_bits_file(u64 occup, u8 sqr_idx) {
 
 // TODO just template over piece color
 // TODO make sure everything is optimized out properly
-template <PieceColor c>
-constexpr u64 pawn_attacks(u64 your_pawns, u64 occup, u64 enemy) {
+template <PieceColor c, bool FWD_ONLY> constexpr u64 pawn_attacks(Board& brd) {
+    u64 your_pawns = brd.pawns<c>();
+    u64 occup = brd.occup();
+    u64 enemy = brd.color<!c>();
+
     // TODO add sideway attacks
     const u64 fwd_mvs_white = (your_pawns << 8) | ((your_pawns & RANK2) << 16);
     const u64 fwd_mvs_black = (your_pawns >> 8) | ((your_pawns & RANK7) >> 16);
@@ -530,7 +533,11 @@ constexpr u64 pawn_attacks(u64 your_pawns, u64 occup, u64 enemy) {
     auto fwd_mvs = is_white(c) ? fwd_mvs_white : fwd_mvs_black;
     auto side_atks = is_white(c) ? side_atks_white : side_atks_black;
 
-    return (fwd_mvs & ~occup) | (side_atks & enemy);
+    if (FWD_ONLY) {
+        return (fwd_mvs & ~occup);
+    } else {
+        return (fwd_mvs & ~occup) | (side_atks & enemy);
+    }
 }
 
 constexpr u64 rook_attacks_fixed(u64 occup, u8 sqr_idx) {

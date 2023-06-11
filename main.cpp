@@ -24,6 +24,13 @@ void iterate_knight_moves(Board& brd) {
     // this means to find the index of the from square
     // when iterating over the moves, you need both bits
 
+    // so just check if behind bit is set (>>8)
+    // if it is -> 1 forward
+    // else -> 2 forward
+
+    // 1->1
+    // 0->2
+
     // now iterate over possible moves for that knight
 
     for (auto n_idx : BitIterator(brd.wn())) {
@@ -41,29 +48,36 @@ void iterate_knight_moves(Board& brd) {
 
 // now we just need some benchmarks for this
 
+// now we basically just need a way to make sure
+// you can only make legal moves (do not put you in check)
+
 int main(int argc, char** argv) {
     auto brd = Board::starting_position();
 
-    auto n_idx = 31;
+    // for (auto n_idx : BitIterator(brd.wp())) {
+    // u64 atks = knight_attacks<White>(brd, n_idx);
+    // u64 atks = pawn_attacks<White, true>(brd, n_idx);
+    u64 atks = pawn_attacks<White, true>(brd);
+    for (auto atk_idx : BitIterator(atks)) {
+        // so just check if behind bit is set (>>8)
+        // if it is -> 1 forward
+        // else -> 2 forward
 
-    brd.wn() |= MSB64 >> n_idx;
-    brd.white() |= MSB64 >> n_idx;
-    brd.occup() |= MSB64 >> n_idx;
-    assert(is_board_valid_debug(brd));
+        // 1->1
+        // 0->2
 
-    for (auto n_idx : BitIterator(brd.wn())) {
-        u64 atks = knight_attacks<White>(brd, n_idx);
-        for (auto atk_idx : BitIterator(atks)) {
-            auto undo =
-                make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+        auto p_idx =
+            atk_idx + 8 * ((brd.wp() & (MSB64 >> (atk_idx + 8))) ? 1 : 2);
 
-            print_board(brd);
+        auto undo = make_move_undoable<White, Pawn>(brd, Move(p_idx, atk_idx));
 
-            assert(is_board_valid_debug(brd));
+        print_board(brd);
 
-            undo_move(brd, undo);
+        assert(is_board_valid_debug(brd));
 
-            assert(is_board_valid_debug(brd));
-        }
+        undo_move(brd, undo);
+
+        assert(is_board_valid_debug(brd));
     }
+    // }
 }
