@@ -66,34 +66,4 @@ int main(int argc, char** argv) {
             assert(is_board_valid_debug(brd));
         }
     }
-
-    // // iterate over indexes of white knights
-    // for (u64 wn2 = brd.wn(); wn2;) {
-    //     auto n_idx = std::countl_zero(wn2);
-
-    //     // now iterate over possible moves for that knight
-    //     u64 atks = knight_attacks<White>(brd, n_idx);
-    //     while (atks) {
-    //         auto atk_idx = std::countl_zero(atks);
-
-    //         // unmake move instead of copy?
-    //         // iterate through all knight attacks at once?
-    //         // remove some unnecessary shifts by not dealing with index?
-
-    //         auto undo =
-    //             make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
-
-    //         print_board(brd);
-
-    //         assert(is_board_valid_debug(brd));
-
-    //         undo_move(brd, undo);
-
-    //         assert(is_board_valid_debug(brd));
-
-    //         atks &= ~(MSB64 >> atk_idx);
-    //     }
-
-    //     wn2 &= ~(MSB64 >> n_idx);
-    // }
 }
