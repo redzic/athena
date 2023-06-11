@@ -54,30 +54,37 @@ void iterate_knight_moves(Board& brd) {
 int main(int argc, char** argv) {
     auto brd = Board::starting_position();
 
-    // for (auto n_idx : BitIterator(brd.wp())) {
-    // u64 atks = knight_attacks<White>(brd, n_idx);
-    // u64 atks = pawn_attacks<White, true>(brd, n_idx);
-    u64 atks = pawn_attacks<White, true>(brd);
-    for (auto atk_idx : BitIterator(atks)) {
-        // so just check if behind bit is set (>>8)
-        // if it is -> 1 forward
-        // else -> 2 forward
+    u64 wn2 = brd.wn();
+    while (wn2) {
+        auto n_idx = std::countr_zero(wn2);
 
-        // 1->1
-        // 0->2
+        u64 atks = knight_attacks<White>(brd, n_idx);
 
-        auto p_idx =
-            atk_idx + 8 * ((brd.wp() & (MSB64 >> (atk_idx + 8))) ? 1 : 2);
+        while (atks) {
+            auto atk_idx = std::countr_zero(atks);
 
-        auto undo = make_move_undoable<White, Pawn>(brd, Move(p_idx, atk_idx));
+            auto undo =
+                make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
 
-        print_board(brd);
+            print_board(brd);
 
-        assert(is_board_valid_debug(brd));
+            undo_move(brd, undo);
 
-        undo_move(brd, undo);
+            atks &= atks - 1;
+        }
 
-        assert(is_board_valid_debug(brd));
+        wn2 &= wn2 - 1;
     }
+
+    // for (auto n_idx : BitIterator(brd.wn())) {
+    //     u64 atks = knight_attacks<White>(brd, n_idx);
+    //     for (auto atk_idx : BitIterator(atks)) {
+    //         auto undo =
+    //             make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+
+    //         // use_board(brd);
+
+    //         undo_move(brd, undo);
+    //     }
     // }
 }

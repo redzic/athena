@@ -29,16 +29,32 @@
 
 // TODO check best practice with naming conventions on these defines
 
+// access with [63-idx]
+// static constexpr std::array<std::string_view, 64> square_to_coords = {
+//     "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
+//     "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+//     "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+//     "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+//     "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+//     "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+//     "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+//     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+// };
+
+// so index 0 is the least significant bit (h1, i.e. bottom right)
+// and the board is laid out as above. but when you index it,
+// things are reversed.
+
 /* clang-format off */
-static constexpr std::array<std::string_view, 64> square_to_coords = {
-    "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-    "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-    "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-    "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-    "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-    "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-    "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-    "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+static constexpr std::array<std::string_view, 64> coords_reversed = {
+    "h1", "g1", "f1", "e1", "d1", "c1", "b1", "a1",
+    "h2", "g2", "f2", "e2", "d2", "c2", "b2", "a2",
+    "h3", "g3", "f3", "e3", "d3", "c3", "b3", "a3",
+    "h4", "g4", "f4", "e4", "d4", "c4", "b4", "a4",
+    "h5", "g5", "f5", "e5", "d5", "c5", "b5", "a5",
+    "h6", "g6", "f6", "e6", "d6", "c6", "b6", "a6",
+    "h7", "g7", "f7", "e7", "d7", "c7", "b7", "a7",
+    "h8", "g8", "f8", "e8", "d8", "c8", "b8", "a8",
 };
 /* clang-format on */
 
@@ -313,13 +329,12 @@ _OptSize _NoInline void print_board(const Board& brd) {
 _OptSize _NoInline void print_bitboard(u64 bitboard) {
     for (u32 i = 0; i < 8; i++) {
         for (u32 j = 0; j < 8; j++) {
-            auto bit = ((bitboard << j) >> 63) & 1;
+            auto bit = bitboard >> 63;
+            bitboard <<= 1;
             putchar('0' + bit);
             // if (j != 7)
             //     putchar(' ');
         }
-
-        bitboard <<= 8;
 
         putchar('\n');
     }
@@ -341,7 +356,7 @@ consteval u64 knight_attack_map(u8 sqr_idx) {
         const int new_y = y_idx + dy;
 
         if ((new_x >= 0 && new_x <= 7) && (new_y >= 0 && new_y <= 7)) {
-            u64 sqr = MSB64 >> (8 * new_y + new_x);
+            u64 sqr = 1ull << (8 * new_y + new_x);
             attack_map |= sqr;
         }
     }
@@ -383,7 +398,7 @@ constexpr bool is_board_valid_debug(Board brd) {
         for (auto j = 0; j < 12; j++) {
             // check if ith bit is set starting from left (msb)
             // msb = index 0, and so on
-            if ((brd.bitboards[j] << i) & MSB64) {
+            if ((brd.bitboards[j] >> i) & 1) {
                 dupes[count++] = static_cast<Square>(j);
             }
         }
@@ -570,7 +585,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
 
-    const u64 old_piece = MSB64 >> mv.from;
+    const u64 old_piece = 1ull << mv.from;
 
     // we could also xor here with old_piece (not negated, these are bits
     // are always set in a valid board), but it ends up being slightly
@@ -579,7 +594,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
     brd.color<to_mv>() &= ~old_piece;
     brd.occup() &= ~old_piece;
 
-    const u64 new_piece = MSB64 >> mv.to;
+    const u64 new_piece = 1ull << mv.to;
 
     brd.board<c, t>() |= new_piece;
     brd.color<to_mv>() |= new_piece;
@@ -628,15 +643,15 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
 }
 
 template <PieceColor c> constexpr void undo_move(Board& brd, UndoTag<c> undo) {
-    u64 switcher = (MSB64 >> undo.from) ^ (MSB64 >> undo.to);
+    u64 switcher = (1ull << undo.from) ^ (1ull << undo.to);
     brd.bitboards[c * 6 + undo.piece_type] ^= switcher;
     brd.bitboards[12 + c] ^= switcher;
 
     if (undo.capture) {
-        brd.bitboards[(!c) * 6 + undo.capture_piece_type] ^= MSB64 >> undo.to;
+        brd.bitboards[(!c) * 6 + undo.capture_piece_type] ^= 1ull << undo.to;
         // other color
-        brd.bitboards[12 + (!c)] ^= MSB64 >> undo.to;
-        brd.occup() ^= MSB64 >> undo.from;
+        brd.bitboards[12 + (!c)] ^= 1ull << undo.to;
+        brd.occup() ^= 1ull << undo.from;
     } else {
         brd.occup() ^= switcher;
     }
@@ -652,7 +667,7 @@ constexpr void make_move(Board& brd, Move mv) {
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
 
-    const u64 old_piece = MSB64 >> mv.from;
+    const u64 old_piece = 1ull << mv.from;
 
     // we could also xor here with old_piece (not negated, these are bits
     // are always set in a valid board), but it ends up being slightly
@@ -661,7 +676,7 @@ constexpr void make_move(Board& brd, Move mv) {
     brd.color<to_mv>() &= ~old_piece;
     brd.occup() &= ~old_piece;
 
-    const u64 new_piece = MSB64 >> mv.to;
+    const u64 new_piece = 1ull << mv.to;
 
     brd.board<c, t>() |= new_piece;
     brd.color<to_mv>() |= new_piece;
