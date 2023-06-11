@@ -1,16 +1,13 @@
-#include <algorithm>
+#pragma once
+
 #include <array>
 #include <bit>
-#include <bitset>
 #include <cassert>
-#include <cstdint>
-#include <cstring>
 #include <iostream>
-#include <tuple>
 
 // TODO fix this since it doesn't actually do what it's supposed to
 // probably need another header of defines or something
-#if defined(__X86_64__)
+#if defined(__amd64__)
 #include <immintrin.h>
 #endif
 
@@ -474,7 +471,7 @@ constexpr u8 fix_bits_rank(u8 occup, u8 idx) {
 
 // TODO optimize functions that call this for for no pext
 constexpr u64 ext8bits(u64 x) {
-#if defined(__X86_64__)
+#if defined(__amd64__)
     return _pext_u64(x, broadcast_byte(1 << 7));
 #else
     u64 res = 0;
@@ -487,7 +484,7 @@ constexpr u64 ext8bits(u64 x) {
 
 // TODO same as above
 constexpr u64 dep8bits(u64 x) {
-#if defined(__X86_64__)
+#if defined(__amd64__)
     return _pdep_u64(x, broadcast_byte(1 << 7));
 #else
     u64 res = 0;
@@ -514,7 +511,7 @@ constexpr u64 fix_bits_file(u64 occup, u8 sqr_idx) {
 // TODO just template over piece color
 // TODO make sure everything is optimized out properly
 template <PieceColor c>
-constexpr u64 pawns_atk(u64 your_pawns, u64 occup, u64 enemy) {
+constexpr u64 pawn_attacks(u64 your_pawns, u64 occup, u64 enemy) {
     // TODO add sideway attacks
     const u64 fwd_mvs_white = (your_pawns << 8) | ((your_pawns & RANK2) << 16);
     const u64 fwd_mvs_black = (your_pawns >> 8) | ((your_pawns & RANK7) >> 16);
