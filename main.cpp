@@ -59,13 +59,13 @@ int main(int argc, char** argv) {
             // iterate through all knight attacks at once?
             // remove some unnecessary shifts by not dealing with index?
 
-            // auto brd_copy = brd;
-            // make_move<White, Knight>(brd_copy, n_idx, atk_idx);
-            auto undo = make_move_undoable<White, Knight>(brd, n_idx, atk_idx);
+            auto undo =
+                make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+
+            print_board(brd);
 
             assert(is_board_valid_debug(brd));
 
-            print_board(brd);
             undo_move(brd, undo);
 
             assert(is_board_valid_debug(brd));
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
         wn2 &= ~(MSB64 >> n_idx);
     }
 
-    make_move<White, Knight>(brd, n_idx, n_idx - 17);
+    make_move<White, Knight>(brd, Move(n_idx, n_idx - 17));
 
     assert(is_board_valid_debug(brd));
 }

@@ -218,9 +218,13 @@ constexpr Board Board::starting_position() {
 }
 
 struct Move {
-    u16 from_idx : 3;
-    u16 to_idx : 3;
-    u16 tag_bits : 4;
+    // from index
+    u16 from : 6;
+    // to index
+    u16 to : 6;
+    u16 padding_bits : 4;
+
+    constexpr Move(u16 from, u16 to) : from(from), to(to) {}
 };
 
 _OptSize _NoInline void print_board(const Board& brd) {
@@ -535,8 +539,6 @@ constexpr u64 rook_attacks_fixed(u64 occup, u8 sqr_idx) {
            fix_bits_file(occup, sqr_idx);
 }
 
-// TODO remove _idx from obvious stuff
-
 // Tag that goes along move
 // c = color of move made
 template <PieceColor c> struct UndoTag {
@@ -545,8 +547,6 @@ template <PieceColor c> struct UndoTag {
     u32 to : 6;
 
     // ceil(log(6, 2))
-    // technically not needed but saves us from redoing the same work
-    // to figure out what the piece type of the moved piece was
     u32 piece_type : 3;
 
     // boolean flag, was there a capture
@@ -555,12 +555,12 @@ template <PieceColor c> struct UndoTag {
 };
 
 template <PieceColor c, PieceType t>
-constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
+constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
     // TODO maybe add debug_asserts to check for self-capture
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
 
-    const u64 old_piece = MSB64 >> from_idx;
+    const u64 old_piece = MSB64 >> mv.from;
 
     // we could also xor here with old_piece (not negated, these are bits
     // are always set in a valid board), but it ends up being slightly
@@ -569,7 +569,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
     brd.color<to_mv>() &= ~old_piece;
     brd.occup() &= ~old_piece;
 
-    const u64 new_piece = MSB64 >> to_idx;
+    const u64 new_piece = MSB64 >> mv.to;
 
     brd.board<c, t>() |= new_piece;
     brd.color<to_mv>() |= new_piece;
@@ -587,7 +587,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
         // perhaps this can be explicitly vectorized with shift+movemask
         // (extract msb)
 
-        u64 b7 = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, to_idx);
+        u64 b7 = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, mv.to);
 
         // assuming valid board, this should contain exactly 1 bit
         __assume(b7 != 0);
@@ -597,8 +597,8 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
         brd.color<enemy>() ^= new_piece;
 
         return UndoTag<c>{
-            .from = from_idx,
-            .to = to_idx,
+            .from = mv.from,
+            .to = mv.to,
             .piece_type = t,
             .capture = 1,
             .capture_piece_type = capture_idx,
@@ -609,8 +609,8 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, u8 from_idx, u8 to_idx) {
         brd.occup() |= new_piece;
 
         return UndoTag<c>{
-            .from = from_idx,
-            .to = to_idx,
+            .from = mv.from,
+            .to = mv.to,
             .piece_type = t,
             .capture = 0,
         };
@@ -637,12 +637,12 @@ template <PieceColor c> constexpr void undo_move(Board& brd, UndoTag<c> undo) {
 // should check if generated code is worse when passing color and type as
 // runtime arguments
 template <PieceColor c, PieceType t>
-constexpr void make_move(Board& brd, u8 from_idx, u8 to_idx) {
+constexpr void make_move(Board& brd, Move mv) {
     // TODO maybe add debug_asserts to check for self-capture
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
 
-    const u64 old_piece = MSB64 >> from_idx;
+    const u64 old_piece = MSB64 >> mv.from;
 
     // we could also xor here with old_piece (not negated, these are bits
     // are always set in a valid board), but it ends up being slightly
@@ -651,7 +651,7 @@ constexpr void make_move(Board& brd, u8 from_idx, u8 to_idx) {
     brd.color<to_mv>() &= ~old_piece;
     brd.occup() &= ~old_piece;
 
-    const u64 new_piece = MSB64 >> to_idx;
+    const u64 new_piece = MSB64 >> mv.to;
 
     brd.board<c, t>() |= new_piece;
     brd.color<to_mv>() |= new_piece;
