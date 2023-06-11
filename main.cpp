@@ -4,34 +4,38 @@
 
 void use_board(Board& brd);
 
-void iterate_moves(Board& brd) {
-    // iterate over indexes of white knights
-    for (u64 wn2 = brd.wn(); wn2;) {
-        auto n_idx = std::countl_zero(wn2);
+void iterate_knight_moves(Board& brd) {
+    // if there is a forward pawn move (no capture)
+    // then that means that there is either a pawn
+    // directly behind the target square, or two
+    // squares behind.
 
-        // now iterate over possible moves for that knight
+    // it is not possible for a pawn to be 2 away
+    // from the target square AND for there to be
+    // a pawn in between the target square and the
+    // original square.
+
+    // the possibilities are as follows:
+
+    // 10 - 1 forward
+    // 11 - 1 forward
+    // 01 - 2 forward
+
+    // this means to find the index of the from square
+    // when iterating over the moves, you need both bits
+
+    // now iterate over possible moves for that knight
+
+    for (auto n_idx : BitIterator(brd.wn())) {
         u64 atks = knight_attacks<White>(brd, n_idx);
-        while (atks) {
-            auto atk_idx = std::countl_zero(atks);
-
-            // unmake move instead of copy?
-            // iterate through all knight attacks at once?
-            // remove some unnecessary shifts by not dealing with index?
-            // auto brd_copy = brd;
-            // make_move<White, Knight>(brd_copy, Move(n_idx, atk_idx));
-
-            // use_board(brd_copy);
-
-            auto tag =
+        for (auto atk_idx : BitIterator(atks)) {
+            auto undo =
                 make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
 
             // use_board(brd);
-            undo_move(brd, tag);
 
-            atks &= ~(MSB64 >> atk_idx);
+            undo_move(brd, undo);
         }
-
-        wn2 &= ~(MSB64 >> n_idx);
     }
 }
 
@@ -47,19 +51,9 @@ int main(int argc, char** argv) {
     brd.occup() |= MSB64 >> n_idx;
     assert(is_board_valid_debug(brd));
 
-    // iterate over indexes of white knights
-    for (u64 wn2 = brd.wn(); wn2;) {
-        auto n_idx = std::countl_zero(wn2);
-
-        // now iterate over possible moves for that knight
+    for (auto n_idx : BitIterator(brd.wn())) {
         u64 atks = knight_attacks<White>(brd, n_idx);
-        while (atks) {
-            auto atk_idx = std::countl_zero(atks);
-
-            // unmake move instead of copy?
-            // iterate through all knight attacks at once?
-            // remove some unnecessary shifts by not dealing with index?
-
+        for (auto atk_idx : BitIterator(atks)) {
             auto undo =
                 make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
 
@@ -70,14 +64,36 @@ int main(int argc, char** argv) {
             undo_move(brd, undo);
 
             assert(is_board_valid_debug(brd));
-
-            atks &= ~(MSB64 >> atk_idx);
         }
-
-        wn2 &= ~(MSB64 >> n_idx);
     }
 
-    make_move<White, Knight>(brd, Move(n_idx, n_idx - 17));
+    // // iterate over indexes of white knights
+    // for (u64 wn2 = brd.wn(); wn2;) {
+    //     auto n_idx = std::countl_zero(wn2);
 
-    assert(is_board_valid_debug(brd));
+    //     // now iterate over possible moves for that knight
+    //     u64 atks = knight_attacks<White>(brd, n_idx);
+    //     while (atks) {
+    //         auto atk_idx = std::countl_zero(atks);
+
+    //         // unmake move instead of copy?
+    //         // iterate through all knight attacks at once?
+    //         // remove some unnecessary shifts by not dealing with index?
+
+    //         auto undo =
+    //             make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+
+    //         print_board(brd);
+
+    //         assert(is_board_valid_debug(brd));
+
+    //         undo_move(brd, undo);
+
+    //         assert(is_board_valid_debug(brd));
+
+    //         atks &= ~(MSB64 >> atk_idx);
+    //     }
+
+    //     wn2 &= ~(MSB64 >> n_idx);
+    // }
 }

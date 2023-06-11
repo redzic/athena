@@ -224,6 +224,34 @@ struct Move {
     constexpr Move(u16 from, u16 to) : from(from), to(to) {}
 };
 
+// can be done with blsr instruction x86
+// aka x &= x - 1
+// but will iterate over lsbs first
+// and wont give you index lol
+
+class BitIterator {
+  private:
+    u64 value;
+
+  public:
+    constexpr BitIterator(u64 val) : value(val) {}
+
+    constexpr BitIterator& operator++() {
+        u32 idx = std::countl_zero(this->value);
+        this->value &= ~(MSB64 >> idx);
+        return *this;
+    }
+
+    constexpr bool operator!=(const BitIterator& other) const {
+        return this->value != other.value;
+    }
+
+    constexpr u32 operator*() const { return std::countl_zero(this->value); }
+
+    BitIterator begin() const { return *this; }
+    BitIterator end() const { return BitIterator(0); }
+};
+
 _OptSize _NoInline void print_board(const Board& brd) {
     std::array<Square, 64> array_brd;
     static_assert(sizeof(Square) == 1);
@@ -257,21 +285,18 @@ _OptSize _NoInline void print_board(const Board& brd) {
         "+-+-+-+-+-+-+-+-+\n| | | | | | | | |\n";
 
     static_assert(str_row.size() == (2 * ROW_LEN));
+    static_assert(sizeof(char) == 1);
 
     for (size_t i = 0; i < 8; i++) {
-        std::memcpy(board_str.data() + (i * str_row.size()), str_row.data(),
-                    str_row.size());
+        std::memcpy(board_str.data() + (sizeof(char) * i * str_row.size()),
+                    str_row.data(), str_row.size() * sizeof(char));
     }
-    std::memcpy(board_str.data() + (8 * str_row.size()), str_row.data(),
-                ROW_LEN);
+    std::memcpy(board_str.data() + (sizeof(char) * 8 * str_row.size()),
+                str_row.data(), ROW_LEN * sizeof(char));
 
     for (size_t i = 0; i < 12; i++) {
-        // TODO figure out how to move this into its own iterator
-        // preferably with zero-cost abstraction
-        for (auto bb = brd.bitboards[i]; bb;) {
-            const auto lzcnt = std::countl_zero(bb);
+        for (auto lzcnt : BitIterator(brd.bitboards[i])) {
             array_brd[lzcnt] = static_cast<Square>(i);
-            bb &= ~(MSB64 >> lzcnt);
         }
     }
 
@@ -425,25 +450,6 @@ void print_bits(auto x, bool print_32 = false) {
         std::cout << std::bitset<32>(x) << '\n';
     } else {
         std::cout << std::bitset<8>(x) << '\n';
-    }
-}
-// void print_bits(auto x) { std::cout << std::bitset<8>(x) << '\n'; }
-
-// can be done with blsr instruction x86
-// aka x &= x - 1
-// but will iterate over lsbs first
-// and wont give you index lol
-
-// TODO perhaps we can just accept a templated callback argument?
-// that receives each index
-constexpr void bit_loop(u64 bits) {
-    while (bits) {
-        const auto lzcnt = std::countl_zero(bits);
-
-        // use lzcnt (index) here
-        std::cout << lzcnt << '\n';
-
-        bits &= ~(MSB64 >> lzcnt);
     }
 }
 
