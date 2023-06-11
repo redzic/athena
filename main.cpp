@@ -25,7 +25,7 @@ void iterate_moves(Board& brd) {
             auto tag =
                 make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
 
-            use_board(brd);
+            // use_board(brd);
             undo_move(brd, tag);
 
             atks &= ~(MSB64 >> atk_idx);
