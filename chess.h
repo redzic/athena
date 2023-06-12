@@ -77,6 +77,28 @@ constexpr u64 RANK6 = RANK5 << 8;
 constexpr u64 RANK7 = RANK6 << 8;
 constexpr u64 RANK8 = RANK7 << 8;
 
+class BitIterator {
+  private:
+    u64 value;
+
+  public:
+    constexpr BitIterator(u64 val) : value(val) {}
+
+    constexpr BitIterator& operator++() {
+        this->value &= this->value - 1;
+        return *this;
+    }
+
+    constexpr bool operator!=(const BitIterator& other) const {
+        return this->value != other.value;
+    }
+
+    constexpr u32 operator*() const { return std::countr_zero(this->value); }
+
+    BitIterator begin() const { return *this; }
+    BitIterator end() const { return BitIterator(0); }
+};
+
 consteval u64 broadcast_byte(u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
 }
@@ -104,6 +126,8 @@ enum Square : u8 {
     Empty
 };
 
+using Mailbox = std::array<Square, 64>;
+
 enum PieceType : u8 { Pawn, Knight, Rook, Bishop, Queen, King };
 
 constexpr bool is_white(const PieceColor pc) { return pc == PieceColor::White; }
@@ -115,6 +139,14 @@ constexpr bool is_pawn(const Square sqr) {
 
 static constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
     'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
+
+// inefficient :( but hard to make cross platform more efficiently because of
+// platforms not necessarily being utf-8.
+
+// Colors might look inverted on a dark theme
+// static constexpr std::array<std::string_view, 12> UNICODE_PIECE_LOOKUP{
+//     "\u2659", "\u2658", "\u2656", "\u2657", "\u2655", "\u2654",
+//     "\u265F", "\u265E", "\u265C", "\u265D", "\u265B", "\u265A"};
 
 struct Board {
     // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupancy
@@ -151,7 +183,6 @@ struct Board {
     }
 
     template <PieceColor c> constexpr u64& color() { return bitboards[12 + c]; }
-
     template <PieceColor c> constexpr u64& pawns() { return bitboards[c * 6]; }
     template <PieceColor c> constexpr u64& knights() {
         return bitboards[c * 6 + 1];
@@ -190,7 +221,7 @@ struct Board {
         bitboards[14] = white | black;
     }
 
-    _ForceInline constexpr bool operator==(const Board& other) const {
+    _ForceInline constexpr bool operator==(const Board& other) const noexcept {
         // optimization; only compare the first 12 elements of the bitboards
         // and assume that the rest are valid.
         // TODO add debug_assert for last elements
@@ -206,6 +237,21 @@ struct Board {
             return std::memcmp(this->bitboards, other.bitboards,
                                sizeof(u64) * 12) == 0;
         }
+    }
+
+    // returns mailbox representation where index 0 = a8 square
+    _OptSize _ForceInline constexpr Mailbox to_mailbox() const noexcept {
+        Mailbox box;
+        static_assert(sizeof(Square) == 1);
+        memset(box.data(), Square::Empty, 64);
+
+        for (size_t i = 0; i < 12; i++) {
+            for (auto tzcnt : BitIterator(this->bitboards[i])) {
+                box[63 - tzcnt] = static_cast<Square>(i);
+            }
+        }
+
+        return box;
     }
 };
 
@@ -238,87 +284,35 @@ struct Move {
     constexpr Move(u16 from, u16 to) : from(from), to(to) {}
 };
 
-class BitIterator {
-  private:
-    u64 value;
-
-  public:
-    constexpr BitIterator(u64 val) : value(val) {}
-
-    constexpr BitIterator& operator++() {
-        this->value &= this->value - 1;
-        return *this;
-    }
-
-    constexpr bool operator!=(const BitIterator& other) const {
-        return this->value != other.value;
-    }
-
-    constexpr u32 operator*() const { return std::countr_zero(this->value); }
-
-    BitIterator begin() const { return *this; }
-    BitIterator end() const { return BitIterator(0); }
-};
-
 _OptSize _NoInline void print_board(const Board& brd) {
-    std::array<Square, 64> array_brd;
-    static_assert(sizeof(Square) == 1);
-    memset(array_brd.data(), Square::Empty, 64);
+    auto mailbox = brd.to_mailbox();
 
-    // 8 spaces + 9 bars + 1 newline character
-    constexpr auto ROW_LEN = 8 + 9 + 1;
-    constexpr auto NUM_CHARS = ROW_LEN * (8 + 9);
+    constexpr size_t ROW_SIZE = 8 * 2 + 3;
 
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
-    // | | | | | | | | |
-    // +-+-+-+-+-+-+-+-+
+    char ostr[] = "8  . . . . . . . .\n"
+                  "7  . . . . . . . .\n"
+                  "6  . . . . . . . .\n"
+                  "5  . . . . . . . .\n"
+                  "4  . . . . . . . .\n"
+                  "3  . . . . . . . .\n"
+                  "2  . . . . . . . .\n"
+                  "1  . . . . . . . .\n"
+                  "\n"
+                  "   a b c d e f g h\n\n";
 
-    std::array<char, NUM_CHARS> board_str;
-
-    static constexpr std::string_view str_row =
-        "+-+-+-+-+-+-+-+-+\n| | | | | | | | |\n";
-
-    static_assert(str_row.size() == (2 * ROW_LEN));
-    static_assert(sizeof(char) == 1);
-
-    for (size_t i = 0; i < 8; i++) {
-        std::memcpy(board_str.data() + (sizeof(char) * i * str_row.size()),
-                    str_row.data(), str_row.size() * sizeof(char));
-    }
-    std::memcpy(board_str.data() + (sizeof(char) * 8 * str_row.size()),
-                str_row.data(), ROW_LEN * sizeof(char));
-
-    for (size_t i = 0; i < 12; i++) {
-        for (auto bb = brd.bitboards[i]; bb;) {
-            auto tzcnt = std::countr_zero(bb);
-            array_brd[63 - tzcnt] = static_cast<Square>(i);
-            bb &= bb - 1;
+    for (size_t rank = 0; rank < 8; rank++) {
+        for (size_t file = 0; file < 8; file++) {
+            auto sqr = mailbox[rank * 8 + file];
+            if (sqr != Square::Empty) {
+                ostr[3 + ROW_SIZE * rank + 2 * file] = CHAR_PIECE_LOOKUP[sqr];
+            }
         }
     }
 
-#pragma clang loop vectorize(disable)
-    for (size_t i = 0; i < 64; i++) {
-        size_t y_idx = 1 + 2 * (i / 8);
-        size_t x_idx = 1 + 2 * (i % 8);
-
-        board_str[ROW_LEN * y_idx + x_idx] = CHAR_PIECE_LOOKUP[array_brd[i]];
-    }
-
-    std::cout << std::string_view(board_str.data(), NUM_CHARS);
+    static_assert(sizeof(char) == 1);
+    // this gets number of characters right, not bytes?
+    // if not then need to divide by sizeof(char)
+    std::cout << std::string_view(ostr, sizeof(ostr));
 }
 
 _OptSize _NoInline void print_bitboard(u64 bitboard) {
