@@ -138,7 +138,7 @@ constexpr bool is_pawn(const Square sqr) {
 }
 
 static constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
-    'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', ' '};
+    'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', '.'};
 
 // inefficient :( but hard to make cross platform more efficiently because of
 // platforms not necessarily being utf-8.
@@ -303,9 +303,7 @@ _OptSize _NoInline void print_board(const Board& brd) {
     for (size_t rank = 0; rank < 8; rank++) {
         for (size_t file = 0; file < 8; file++) {
             auto sqr = mailbox[rank * 8 + file];
-            if (sqr != Square::Empty) {
-                ostr[3 + ROW_SIZE * rank + 2 * file] = CHAR_PIECE_LOOKUP[sqr];
-            }
+            ostr[3 + ROW_SIZE * rank + 2 * file] = CHAR_PIECE_LOOKUP[sqr];
         }
     }
 
