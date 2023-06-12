@@ -240,34 +240,6 @@ struct Move {
     constexpr Move(u16 from, u16 to) : from(from), to(to) {}
 };
 
-// can be done with blsr instruction x86
-// aka x &= x - 1
-// but will iterate over lsbs first
-// and wont give you index lol
-
-class BitIterator {
-  private:
-    u64 value;
-
-  public:
-    constexpr BitIterator(u64 val) : value(val) {}
-
-    constexpr BitIterator& operator++() {
-        u32 idx = std::countl_zero(this->value);
-        this->value &= ~(MSB64 >> idx);
-        return *this;
-    }
-
-    constexpr bool operator!=(const BitIterator& other) const {
-        return this->value != other.value;
-    }
-
-    constexpr u32 operator*() const { return std::countl_zero(this->value); }
-
-    BitIterator begin() const { return *this; }
-    BitIterator end() const { return BitIterator(0); }
-};
-
 _OptSize _NoInline void print_board(const Board& brd) {
     std::array<Square, 64> array_brd;
     static_assert(sizeof(Square) == 1);
@@ -311,11 +283,14 @@ _OptSize _NoInline void print_board(const Board& brd) {
                 str_row.data(), ROW_LEN * sizeof(char));
 
     for (size_t i = 0; i < 12; i++) {
-        for (auto lzcnt : BitIterator(brd.bitboards[i])) {
-            array_brd[lzcnt] = static_cast<Square>(i);
+        for (auto bb = brd.bitboards[i]; bb;) {
+            auto tzcnt = std::countr_zero(bb);
+            array_brd[63 - tzcnt] = static_cast<Square>(i);
+            bb &= bb - 1;
         }
     }
 
+#pragma clang loop vectorize(disable)
     for (size_t i = 0; i < 64; i++) {
         size_t y_idx = 1 + 2 * (i / 8);
         size_t x_idx = 1 + 2 * (i % 8);
@@ -455,7 +430,7 @@ constexpr u64 rook_attacks(u8 sqr_idx) {
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
 
-    constexpr u64 file = broadcast_byte((u8)1 << 7);
+    constexpr u64 file = broadcast_byte(1 << 7);
 
     return (RANK8 >> (8 * y_idx)) ^ (file >> x_idx);
 }
@@ -492,27 +467,43 @@ constexpr u8 fix_bits_rank(u8 occup, u8 idx) {
 
 // TODO optimize functions that call this for for no pext
 constexpr u64 ext8bits(u64 x) {
+    auto ext8 = [](u64 val) -> u64 {
+        u64 res = 0;
+        for (u32 i = 0; i < 8; i++) {
+            res |= ((val >> (8 * i)) & 1) << i;
+        }
+        return res;
+    };
+
 #if defined(__amd64__)
-    return _pext_u64(x, broadcast_byte(1 << 7));
-#else
-    u64 res = 0;
-    for (auto i = 0; i < 8; i++) {
-        res |= ((x >> (8 * i)) & 1) << i;
+    if (!std::is_constant_evaluated()) {
+        return _pext_u64(x, broadcast_byte(1 << 7));
+    } else {
+        return ext8(x);
     }
-    return res;
+#else
+    return ext8(x);
 #endif
 }
 
 // TODO same as above
 constexpr u64 dep8bits(u64 x) {
+    auto dep8 = [](u64 val) -> u64 {
+        u64 res = 0;
+        for (auto i = 0; i < 8; i++) {
+            res |= ((val >> i) & 1) << (8 * i);
+        }
+        return res;
+    };
+
 #if defined(__amd64__)
-    return _pdep_u64(x, broadcast_byte(1 << 7));
-#else
-    u64 res = 0;
-    for (auto i = 0; i < 8; i++) {
-        res |= ((x >> i) & 1) << (8 * i);
+    if (!std::is_constant_evaluated()) {
+        return _pdep_u64(x, broadcast_byte(1 << 7));
+    } else {
+        return dep8(x);
     }
-    return res;
+#else
+    return dep8(x);
 #endif
 }
 
