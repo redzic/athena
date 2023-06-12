@@ -54,37 +54,15 @@ void iterate_knight_moves(Board& brd) {
 int main(int argc, char** argv) {
     auto brd = Board::starting_position();
 
-    u64 wn2 = brd.wn();
-    while (wn2) {
-        auto n_idx = std::countr_zero(wn2);
-
+    for (auto n_idx : BitIterator(brd.wn())) {
         u64 atks = knight_attacks<White>(brd, n_idx);
-
-        while (atks) {
-            auto atk_idx = std::countr_zero(atks);
-
+        for (auto atk_idx : BitIterator(atks)) {
             auto undo =
                 make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
 
             print_board(brd);
 
             undo_move(brd, undo);
-
-            atks &= atks - 1;
         }
-
-        wn2 &= wn2 - 1;
     }
-
-    // for (auto n_idx : BitIterator(brd.wn())) {
-    //     u64 atks = knight_attacks<White>(brd, n_idx);
-    //     for (auto atk_idx : BitIterator(atks)) {
-    //         auto undo =
-    //             make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
-
-    //         // use_board(brd);
-
-    //         undo_move(brd, undo);
-    //     }
-    // }
 }

@@ -77,8 +77,6 @@ constexpr u64 RANK6 = RANK5 << 8;
 constexpr u64 RANK7 = RANK6 << 8;
 constexpr u64 RANK8 = RANK7 << 8;
 
-constexpr u64 MSB64 = 1ull << 63;
-
 consteval u64 broadcast_byte(u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
 }
@@ -238,6 +236,28 @@ struct Move {
     u16 padding_bits : 4;
 
     constexpr Move(u16 from, u16 to) : from(from), to(to) {}
+};
+
+class BitIterator {
+  private:
+    u64 value;
+
+  public:
+    constexpr BitIterator(u64 val) : value(val) {}
+
+    constexpr BitIterator& operator++() {
+        this->value &= this->value - 1;
+        return *this;
+    }
+
+    constexpr bool operator!=(const BitIterator& other) const {
+        return this->value != other.value;
+    }
+
+    constexpr u32 operator*() const { return std::countr_zero(this->value); }
+
+    BitIterator begin() const { return *this; }
+    BitIterator end() const { return BitIterator(0); }
 };
 
 _OptSize _NoInline void print_board(const Board& brd) {
