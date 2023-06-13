@@ -16,6 +16,6 @@ jobs:
     - name: version check
       run: clang++ --version; g++ --version
     - name: make clang
-      run: make COMPILER=clang++
+      run: make COMPILER=clang++ --always-make
     - name: make gcc
-      run: make COMPILER=g++
+      run: make COMPILER=g++ --always-make
