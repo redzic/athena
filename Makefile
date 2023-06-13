@@ -1,5 +1,5 @@
 COMPILER ?= /opt/homebrew/Cellar/llvm/16.0.5/bin/clang++
-CXXFLAGS = -std=c++2b -O3 -fno-pic -Wall -Wpedantic
+CXXFLAGS = -std=c++2b -O3 -Wall -Wpedantic
 BUILD_DIR = ./build
 SRC_FILES = main.cpp
 HEADER_FILES = chess.h
