@@ -2,7 +2,10 @@
 
 #include <array>
 #include <bit>
+#include <bitset>
 #include <cassert>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 
 #if defined(__amd64__)
@@ -417,7 +420,7 @@ constexpr bool is_board_valid_debug(Board brd) {
             is_valid = false;
 
             std::cout << "Square index " << i << " contains duplicates: ";
-            for (auto k = 0; k < count; k++) {
+            for (size_t k = 0; k < count; k++) {
                 std::cout << CHAR_PIECE_LOOKUP[dupes[k]];
                 if (k != (count - 1)) {
                     std::cout << ", ";
