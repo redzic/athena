@@ -163,51 +163,95 @@ struct Board {
     // returns new board of standard starting chess position
     static constexpr Board starting_position();
 
-    // TODO somehow figure out const version
+    constexpr u64& wp() & noexcept { return bitboards[0]; }
+    constexpr u64& wn() & noexcept { return bitboards[1]; }
+    constexpr u64& wr() & noexcept { return bitboards[2]; }
+    constexpr u64& wb() & noexcept { return bitboards[3]; }
+    constexpr u64& wq() & noexcept { return bitboards[4]; }
+    constexpr u64& wk() & noexcept { return bitboards[5]; }
+    constexpr u64& bp() & noexcept { return bitboards[6]; }
+    constexpr u64& bn() & noexcept { return bitboards[7]; }
+    constexpr u64& br() & noexcept { return bitboards[8]; }
+    constexpr u64& bb() & noexcept { return bitboards[9]; }
+    constexpr u64& bq() & noexcept { return bitboards[10]; }
+    constexpr u64& bk() & noexcept { return bitboards[11]; }
+    constexpr u64& white() & noexcept { return bitboards[12]; }
+    constexpr u64& black() & noexcept { return bitboards[13]; }
+    constexpr u64& occup() & noexcept { return bitboards[14]; }
 
-    constexpr u64& wp() { return bitboards[0]; }
-    constexpr u64& wn() { return bitboards[1]; }
-    constexpr u64& wr() { return bitboards[2]; }
-    constexpr u64& wb() { return bitboards[3]; }
-    constexpr u64& wq() { return bitboards[4]; }
-    constexpr u64& wk() { return bitboards[5]; }
-    constexpr u64& bp() { return bitboards[6]; }
-    constexpr u64& bn() { return bitboards[7]; }
-    constexpr u64& br() { return bitboards[8]; }
-    constexpr u64& bb() { return bitboards[9]; }
-    constexpr u64& bq() { return bitboards[10]; }
-    constexpr u64& bk() { return bitboards[11]; }
-    constexpr u64& white() { return bitboards[12]; }
-    constexpr u64& black() { return bitboards[13]; }
-    constexpr u64& occup() { return bitboards[14]; }
+    constexpr const u64 wp() const& noexcept { return bitboards[0]; }
+    constexpr const u64 wn() const& noexcept { return bitboards[1]; }
+    constexpr const u64 wr() const& noexcept { return bitboards[2]; }
+    constexpr const u64 wb() const& noexcept { return bitboards[3]; }
+    constexpr const u64 wq() const& noexcept { return bitboards[4]; }
+    constexpr const u64 wk() const& noexcept { return bitboards[5]; }
+    constexpr const u64 bp() const& noexcept { return bitboards[6]; }
+    constexpr const u64 bn() const& noexcept { return bitboards[7]; }
+    constexpr const u64 br() const& noexcept { return bitboards[8]; }
+    constexpr const u64 bb() const& noexcept { return bitboards[9]; }
+    constexpr const u64 bq() const& noexcept { return bitboards[10]; }
+    constexpr const u64 bk() const& noexcept { return bitboards[11]; }
+    constexpr const u64 white() const& noexcept { return bitboards[12]; }
+    constexpr const u64 black() const& noexcept { return bitboards[13]; }
+    constexpr const u64 occup() const& noexcept { return bitboards[14]; }
 
     // TODO make these not templates and runtime arguments instead,
     // they should be optimized away anyway (hopefully).
 
-    template <PieceColor c, PieceType t> constexpr u64& board() {
+    template <PieceColor c, PieceType t> constexpr u64& board() & noexcept {
         return bitboards[c * 6 + t];
     }
-
-    template <PieceColor c> constexpr u64& color() { return bitboards[12 + c]; }
-    template <PieceColor c> constexpr u64& pawns() { return bitboards[c * 6]; }
-    template <PieceColor c> constexpr u64& knights() {
+    template <PieceColor c> constexpr u64& color() & noexcept {
+        return bitboards[12 + c];
+    }
+    template <PieceColor c> constexpr u64& pawns() & noexcept {
+        return bitboards[c * 6];
+    }
+    template <PieceColor c> constexpr u64& knights() & noexcept {
         return bitboards[c * 6 + 1];
     }
-    template <PieceColor c> constexpr u64& rooks() {
+    template <PieceColor c> constexpr u64& rooks() & noexcept {
         return bitboards[c * 6 + 2];
     }
-    template <PieceColor c> constexpr u64& bishops() {
+    template <PieceColor c> constexpr u64& bishops() & noexcept {
         return bitboards[c * 6 + 3];
     }
-    template <PieceColor c> constexpr u64& queens() {
+    template <PieceColor c> constexpr u64& queens() & noexcept {
         return bitboards[c * 6 + 4];
     }
-    template <PieceColor c> constexpr u64& king() {
+    template <PieceColor c> constexpr u64& king() & noexcept {
+        return bitboards[c * 6 + 5];
+    }
+
+    // const versions
+    template <PieceColor c, PieceType t>
+    constexpr const u64 board() const& noexcept {
+        return bitboards[c * 6 + t];
+    }
+    template <PieceColor c> constexpr const u64 color() const& noexcept {
+        return bitboards[12 + c];
+    }
+    template <PieceColor c> constexpr const u64 pawns() const& noexcept {
+        return bitboards[c * 6];
+    }
+    template <PieceColor c> constexpr const u64 knights() const& noexcept {
+        return bitboards[c * 6 + 1];
+    }
+    template <PieceColor c> constexpr const u64 rooks() const& noexcept {
+        return bitboards[c * 6 + 2];
+    }
+    template <PieceColor c> constexpr const u64 bishops() const& noexcept {
+        return bitboards[c * 6 + 3];
+    }
+    template <PieceColor c> constexpr const u64 queens() const& noexcept {
+        return bitboards[c * 6 + 4];
+    }
+    template <PieceColor c> constexpr const u64 king() const& noexcept {
         return bitboards[c * 6 + 5];
     }
 
     constexpr Board(u64 wp, u64 wn, u64 wr, u64 wb, u64 wq, u64 wk, u64 bp,
-                    u64 bn, u64 br, u64 bb, u64 bq, u64 bk) {
+                    u64 bn, u64 br, u64 bb, u64 bq, u64 bk) noexcept {
         bitboards[0] = wp;
         bitboards[1] = wn;
         bitboards[2] = wr;
@@ -275,14 +319,59 @@ struct Move {
     constexpr Move(u16 from, u16 to) : from(from), to(to) {}
 };
 
-static constexpr std::string_view board_start = "8  0 0 0 0 0 0 0 0\n"
-                                                "7  0 0 0 0 0 0 0 0\n"
-                                                "6  0 0 0 0 0 0 0 0\n"
-                                                "5  0 0 0 0 0 0 0 0\n"
-                                                "4  0 0 0 0 0 0 0 0\n"
-                                                "3  0 0 0 0 0 0 0 0\n"
-                                                "2  0 0 0 0 0 0 0 0\n"
-                                                "1  0 0 0 0 0 0 0 0\n"
+u8 rev_low4(u8 x) {
+    constexpr u8 k1 = 0b0101;
+
+    // x ^= k1 & (x ^ std::rotl(x, 2));
+    // return std::rotr(x, 1);
+    // below is emulating code for above
+    // since we don't have 4-bit rotate:
+
+    u8 rot = x << 2;
+    rot |= (x & 0b1100) >> 2;
+    rot &= 0b1111;
+
+    x ^= k1 & (x ^ rot);
+
+    // equivalent for 2 bits:
+    x = std::rotr(x, 1);
+    x |= (x >> 7) << 3;
+    x &= ~(1 << 7);
+
+    return x;
+}
+
+constexpr u64 mirror_horizontal(u64 x) {
+    // basically works by breaking down each byte into
+    // groups of 2, 4, 8 and then using XOR to swap
+    // certain bits to generate a permutation.
+    constexpr u64 k4 = broadcast_byte(0b0000'1111);
+    constexpr u64 k2 = broadcast_byte(0b0011'0011);
+    constexpr u64 k1 = broadcast_byte(0b0101'0101);
+
+    // I drew this crap out on paper for 4x4 and got the idea.
+    // Same idea works for any NxN matrix where N is a power of 2 (so
+    // recursion step works). Mathematical induction woohoo.
+    // You will just have to do log2(N) number of steps instead.
+
+    // remember, a^a^b = b because a^a=0 and a^0=a
+    // and this is doing x=x^x^(0 or bit to swap)
+    // which basically just means that it's selectively
+    // swapping bits to generate a new permutation.
+    x ^= k4 & (x ^ std::rotl(x, 8));
+    x ^= k2 & (x ^ std::rotl(x, 4));
+    x ^= k1 & (x ^ std::rotl(x, 2));
+    return std::rotr(x, 7);
+}
+
+static constexpr std::string_view board_start = "8  . . . . . . . .\n"
+                                                "7  . . . . . . . .\n"
+                                                "6  . . . . . . . .\n"
+                                                "5  . . . . . . . .\n"
+                                                "4  . . . . . . . .\n"
+                                                "3  . . . . . . . .\n"
+                                                "2  . . . . . . . .\n"
+                                                "1  . . . . . . . .\n"
                                                 "\n"
                                                 "   a b c d e f g h\n\n";
 
@@ -348,7 +437,7 @@ _OptSize _NoInline void print_bitboard(u64 bitboard) {
         u32 idx = 63 ^ tzcnt;
         size_t x_idx = idx % 8;
         size_t y_idx = idx / 8;
-        ostr[3 + y_idx * ROW_SIZE + 2 * x_idx] = '1';
+        ostr[3 + y_idx * ROW_SIZE + 2 * x_idx] = 'X';
     }
 
     std::cout.write(ostr.data(), ostr.size());
@@ -395,7 +484,7 @@ static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
 // TODO fix const correctness... ugh...
 // kinda inconvenient but whatever.
 template <PieceColor c>
-_ForceInline constexpr u64 knight_attacks(Board& brd, u8 sqr_idx) {
+_ForceInline constexpr u64 knight_attacks(const Board& brd, u8 sqr_idx) {
     return KNIGHT_ATTACK_TABLE[sqr_idx] & ~brd.color<c>();
 }
 
@@ -453,7 +542,6 @@ constexpr bool is_board_valid_debug(Board brd) {
 // checks if there are multiple bitboards with the same bits set
 // for any of the squares
 
-// bro how the heck does this work...
 constexpr u64 knight_attacks_multiple(u64 knights) {
     u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
     u64 l2 = (knights >> 2) & 0x3f3f3f3f3f3f3f3full;
@@ -567,7 +655,8 @@ constexpr u64 fix_bits_file(u64 occup, u8 sqr_idx) {
 
 // TODO just template over piece color
 // TODO make sure everything is optimized out properly
-template <PieceColor c, bool FWD_ONLY> constexpr u64 pawn_attacks(Board& brd) {
+template <PieceColor c, bool FWD_ONLY = false>
+constexpr u64 pawn_attacks(const Board& brd) {
     u64 your_pawns = brd.pawns<c>();
     u64 occup = brd.occup();
     u64 enemy = brd.color<!c>();

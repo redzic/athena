@@ -1,4 +1,5 @@
 #include "chess.h"
+#include "util.h"
 #include <bit>
 #include <cassert>
 #include <iostream>
@@ -52,20 +53,48 @@ void iterate_knight_moves(Board& brd) {
 // now we basically just need a way to make sure
 // you can only make legal moves (do not put you in check)
 
+void print_2x2(u8 x) {
+    u8 top = (x & 0b1100) >> 2;
+    u8 bottom = x & 0b11;
+
+    std::cout << std::bitset<2>(top) << '\n';
+    std::cout << std::bitset<2>(bottom) << '\n';
+}
+
 int main(int argc, char** argv) {
-    auto brd = Board::starting_position();
+    // auto brd = Board::starting_position();
+    // auto brd = random_board();
 
-    for (auto n_idx : BitIterator(brd.wn())) {
-        u64 atks = knight_attacks<White>(brd, n_idx);
-        for (auto atk_idx : BitIterator(atks)) {
-            auto undo =
-                make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+    // u8 x = 0b0110;
 
-            print_board(brd);
-            // print_bitboard(brd.occup());
-            // print_bitboard(std::byteswap(brd.occup()));
+    // print_2x2(x);
 
-            undo_move(brd, undo);
-        }
+    // std::cout << "=============\n";
+
+    // print_2x2(rev_low4(x));
+
+    u64 res = 0;
+    for (auto i = 0; i < 8; i++) {
+        res |= (1ull << i) << (8 * i);
+        res |= (1ull << (i + 2)) << (8 * i);
     }
+
+    std::cout << "original data:\n";
+    print_bitboard(res);
+    std::cout << "horizontally mirrored:\n";
+    print_bitboard(mirror_horizontal(res));
+
+    // for (auto n_idx : BitIterator(brd.wn())) {
+    //     u64 atks = knight_attacks<White>(brd, n_idx);
+    //     for (auto atk_idx : BitIterator(atks)) {
+    //         auto undo =
+    //             make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+
+    //         print_board(brd);
+    //         // print_bitboard(brd.occup());
+    //         // print_bitboard(std::byteswap(brd.occup()));
+
+    //         undo_move(brd, undo);
+    //     }
+    // }
 }

@@ -1,4 +1,10 @@
-pieces = ["P", "N", "R", "B", "Q", "K", "p", "n", "r", "b", "q", "k", "."]
+from sympy import *
 
-for piece in pieces:
-    print(ord(piece) - ord("P"))
+a = Symbol("a", integer=True, positive=True)
+b = Symbol("b", integer=True, positive=True)
+c = Symbol("c", integer=True, positive=True)
+d = Symbol("d", integer=True, positive=True)
+
+array = [a, b, c, d]
+
+print(array)
