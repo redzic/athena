@@ -21,7 +21,7 @@ constexpr Board mailbox_to_bitboard(const Mailbox& brd) {
 
     for (auto i = 0; i < 64; i++) {
         if (brd[i] != Square::Empty) {
-            bitboards[brd[i]] |= (MSB64 >> i);
+            bitboards[brd[i]] |= (1ull << i);
         }
     }
 

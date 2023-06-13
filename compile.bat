@@ -1,1 +1,1 @@
-clang++ -std=c++20 main.cpp -march=x86-64-v4 -O3 -Wall -Wpedantic -o .\build\athena.exe && .\build\athena.exe
+clang++ -std=c++20 main.cpp -march=x86-64-v4 -O3 -Wall -Weffc++ -Wreturn-type -Wpedantic -o .\build\athena.exe && .\build\athena.exe

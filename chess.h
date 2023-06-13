@@ -238,21 +238,6 @@ struct Board {
                                sizeof(u64) * 12) == 0;
         }
     }
-
-    // returns mailbox representation where index 0 = a8 square
-    _OptSize _ForceInline constexpr Mailbox to_mailbox() const noexcept {
-        Mailbox box;
-        static_assert(sizeof(Square) == 1);
-        memset(box.data(), Square::Empty, 64);
-
-        for (size_t i = 0; i < 12; i++) {
-            for (auto tzcnt : BitIterator(this->bitboards[i])) {
-                box[63 - tzcnt] = static_cast<Square>(i);
-            }
-        }
-
-        return box;
-    }
 };
 
 constexpr Board Board::starting_position() {
@@ -284,47 +269,62 @@ struct Move {
     constexpr Move(u16 from, u16 to) : from(from), to(to) {}
 };
 
+static constexpr std::string_view board_start = "8  0 0 0 0 0 0 0 0\n"
+                                                "7  0 0 0 0 0 0 0 0\n"
+                                                "6  0 0 0 0 0 0 0 0\n"
+                                                "5  0 0 0 0 0 0 0 0\n"
+                                                "4  0 0 0 0 0 0 0 0\n"
+                                                "3  0 0 0 0 0 0 0 0\n"
+                                                "2  0 0 0 0 0 0 0 0\n"
+                                                "1  0 0 0 0 0 0 0 0\n"
+                                                "\n"
+                                                "   a b c d e f g h\n\n";
+
 _OptSize _NoInline void print_board(const Board& brd) {
-    auto mailbox = brd.to_mailbox();
+    Mailbox box;
+    static_assert(sizeof(Square) == 1);
+    memset(box.data(), Square::Empty, 64);
+
+    for (size_t i = 0; i < 12; i++) {
+        for (auto tzcnt : BitIterator(brd.bitboards[i])) {
+            box[63 ^ tzcnt] = static_cast<Square>(i);
+        }
+    }
 
     constexpr size_t ROW_SIZE = 8 * 2 + 3;
 
-    char ostr[] = "8  . . . . . . . .\n"
-                  "7  . . . . . . . .\n"
-                  "6  . . . . . . . .\n"
-                  "5  . . . . . . . .\n"
-                  "4  . . . . . . . .\n"
-                  "3  . . . . . . . .\n"
-                  "2  . . . . . . . .\n"
-                  "1  . . . . . . . .\n"
-                  "\n"
-                  "   a b c d e f g h\n\n";
+    std::array<char, board_start.size()> ostr;
+    memcpy(ostr.data(), board_start.data(), board_start.size());
 
     for (size_t rank = 0; rank < 8; rank++) {
         for (size_t file = 0; file < 8; file++) {
-            auto sqr = mailbox[rank * 8 + file];
+            auto sqr = box[rank * 8 + file];
             ostr[3 + ROW_SIZE * rank + 2 * file] = CHAR_PIECE_LOOKUP[sqr];
         }
     }
 
     static_assert(sizeof(char) == 1);
-    // this gets number of characters right, not bytes?
-    // if not then need to divide by sizeof(char)
-    std::cout << std::string_view(ostr, sizeof(ostr));
+    std::cout.write(ostr.data(), ostr.size());
 }
 
 _OptSize _NoInline void print_bitboard(u64 bitboard) {
-    for (u32 i = 0; i < 8; i++) {
-        for (u32 j = 0; j < 8; j++) {
-            auto bit = bitboard >> 63;
-            bitboard <<= 1;
-            putchar('0' + bit);
-            // if (j != 7)
-            //     putchar(' ');
-        }
+    constexpr size_t ROW_SIZE = 8 * 2 + 3;
 
-        putchar('\n');
+    std::array<char, board_start.size()> ostr;
+    memcpy(ostr.data(), board_start.data(), board_start.size());
+
+    for (auto tzcnt : BitIterator(bitboard)) {
+        // 63-x = x^63 because x+(63-x)=63
+        // since 63 is 2^6-1, x and (63-x) occupy
+        // distinct bits, the bitwise complement
+        // is 63-x. this saves a register.
+        u32 idx = 63 ^ tzcnt;
+        size_t x_idx = idx % 8;
+        size_t y_idx = idx / 8;
+        ostr[3 + y_idx * ROW_SIZE + 2 * x_idx] = '1';
     }
+
+    std::cout.write(ostr.data(), ostr.size());
 }
 
 // simple but slow implementation, only used to build table at compile-time
@@ -378,7 +378,7 @@ constexpr bool is_board_valid_debug(Board brd) {
     auto is_valid = true;
 
     for (auto i = 0; i < 64; i++) {
-        int count = 0;
+        size_t count = 0;
 
         Square dupes[12];
 
@@ -454,6 +454,12 @@ void print_bits(auto x, bool print_32 = false) {
         std::cout << std::bitset<8>(x) << '\n';
     }
 }
+
+// double check, mostly by giving check + discovered check
+//      - only possible response is king move
+
+// but technically possible to do via ep capture
+//      - basically you give 2 discovered checks at once
 
 constexpr u8 fix_bits_rank(u8 occup, u8 idx) {
     occup &= ~((1 << 7) >> idx);
@@ -551,7 +557,7 @@ template <PieceColor c, bool FWD_ONLY> constexpr u64 pawn_attacks(Board& brd) {
     auto fwd_mvs = is_white(c) ? fwd_mvs_white : fwd_mvs_black;
     auto side_atks = is_white(c) ? side_atks_white : side_atks_black;
 
-    if (FWD_ONLY) {
+    if constexpr (FWD_ONLY) {
         return (fwd_mvs & ~occup);
     } else {
         return (fwd_mvs & ~occup) | (side_atks & enemy);
@@ -632,8 +638,8 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
             .capture_piece_type = capture_idx,
         };
     } else {
-        // no need to update if capture, since this bit was already set by old
-        // enemy piece
+        // no need to update if capture, since this bit was already set by
+        // old enemy piece
         brd.occup() |= new_piece;
 
         return UndoTag<c>{
@@ -697,8 +703,8 @@ constexpr void make_move(Board& brd, Move mv) {
         brd.color   <enemy>() &= ~new_piece;
         /* clang-format on */
     } else {
-        // no need to update if capture, since this bit was already set by old
-        // enemy piece
+        // no need to update if capture, since this bit was already set by
+        // old enemy piece
         brd.occup() |= new_piece;
     }
 }

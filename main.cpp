@@ -1,4 +1,5 @@
 #include "chess.h"
+#include <bit>
 #include <cassert>
 #include <iostream>
 
@@ -61,6 +62,8 @@ int main(int argc, char** argv) {
                 make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
 
             print_board(brd);
+            // print_bitboard(brd.occup());
+            // print_bitboard(std::byteswap(brd.occup()));
 
             undo_move(brd, undo);
         }

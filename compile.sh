@@ -1,1 +1,2 @@
-clang++ -std=c++20 main.cpp -O3 -Wall -Wpedantic -o ./build/athena && ./build/athena
+# clang++ -std=c++20 main.cpp -O3 -fno-pic -Wall -Wpedantic -o ./build/athena && ./build/athena
+/opt/homebrew/Cellar/llvm/16.0.5/bin/clang++ -std=c++2b main.cpp -O3 -fno-pic -Wall -Wpedantic -o ./build/athena && ./build/athena
