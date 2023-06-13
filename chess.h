@@ -5,10 +5,12 @@
 #include <cassert>
 #include <iostream>
 
-// TODO fix this since it doesn't actually do what it's supposed to
-// probably need another header of defines or something
 #if defined(__amd64__)
 #include <immintrin.h>
+#endif
+
+#if defined(__aarch64__)
+#include <arm_neon.h>
 #endif
 
 #define _ForceInline __attribute__((always_inline)) inline
@@ -283,7 +285,8 @@ static constexpr std::string_view board_start = "8  0 0 0 0 0 0 0 0\n"
 _OptSize _NoInline void print_board(const Board& brd) {
     Mailbox box;
     static_assert(sizeof(Square) == 1);
-    memset(box.data(), Square::Empty, 64);
+    static_assert(sizeof(box) == 64);
+    memset(box.data(), Square::Empty, box.size());
 
     for (size_t i = 0; i < 12; i++) {
         for (auto tzcnt : BitIterator(brd.bitboards[i])) {
@@ -296,12 +299,32 @@ _OptSize _NoInline void print_board(const Board& brd) {
     std::array<char, board_start.size()> ostr;
     memcpy(ostr.data(), board_start.data(), board_start.size());
 
+#if defined(__aarch64__)
+    const auto lut = vld1q_u8((const unsigned char*)CHAR_PIECE_LOOKUP.data());
+    static constexpr std::array<char, 16> row_data = {
+        ' ', ' ', ' ', ' ', ' ', ' ', ' ', '\n',
+        ' ', ' ', ' ', ' ', ' ', ' ', ' ', '\n',
+    };
+    auto row = vld1q_u8((const unsigned char*)row_data.data());
+
+    size_t idx = 0;
+    for (size_t i = 0; i < 4; i++) {
+        auto indexes = vld1q_u8((const unsigned char*)box.data() + i * 16);
+        auto chars = vqtbl1q_u8(lut, indexes);
+        auto formatted = vzip1q_u8(chars, row);
+        auto formatted2 = vzip2q_u8(chars, row);
+        vst1q_u8((unsigned char*)ostr.data() + 3 + idx, formatted);
+        vst1q_u8((unsigned char*)ostr.data() + 3 + idx + ROW_SIZE, formatted2);
+        idx += 2 * ROW_SIZE;
+    }
+#else
     for (size_t rank = 0; rank < 8; rank++) {
         for (size_t file = 0; file < 8; file++) {
             auto sqr = box[rank * 8 + file];
             ostr[3 + ROW_SIZE * rank + 2 * file] = CHAR_PIECE_LOOKUP[sqr];
         }
     }
+#endif
 
     static_assert(sizeof(char) == 1);
     std::cout.write(ostr.data(), ostr.size());
