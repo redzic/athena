@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
+#include <tuple>
 
 #if defined(__amd64__)
 #include <immintrin.h>
