@@ -1,1 +1,0 @@
-clang++ -std=c++20 tests.cpp -O3 -Wall -Wpedantic -o build/tests && ./build/tests
