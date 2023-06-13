@@ -4,8 +4,6 @@
 #include <cassert>
 #include <iostream>
 
-void use_board(Board& brd);
-
 void iterate_knight_moves(Board& brd) {
     // if there is a forward pawn move (no capture)
     // then that means that there is either a pawn

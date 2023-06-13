@@ -319,28 +319,6 @@ struct Move {
     constexpr Move(u16 from, u16 to) : from(from), to(to) {}
 };
 
-u8 rev_low4(u8 x) {
-    constexpr u8 k1 = 0b0101;
-
-    // x ^= k1 & (x ^ std::rotl(x, 2));
-    // return std::rotr(x, 1);
-    // below is emulating code for above
-    // since we don't have 4-bit rotate:
-
-    u8 rot = x << 2;
-    rot |= (x & 0b1100) >> 2;
-    rot &= 0b1111;
-
-    x ^= k1 & (x ^ rot);
-
-    // equivalent for 2 bits:
-    x = std::rotr(x, 1);
-    x |= (x >> 7) << 3;
-    x &= ~(1 << 7);
-
-    return x;
-}
-
 constexpr u64 mirror_horizontal(u64 x) {
     // basically works by breaking down each byte into
     // groups of 2, 4, 8 and then using XOR to swap
@@ -491,14 +469,14 @@ _ForceInline constexpr u64 knight_attacks(const Board& brd, u8 sqr_idx) {
 // TODO add in checking of white/black/occup
 // TODO fix const on this
 constexpr bool is_board_valid_debug(Board brd) {
-    auto is_valid = true;
+    bool is_valid = true;
 
-    for (auto i = 0; i < 64; i++) {
+    for (u32 i = 0; i < 64; i++) {
         size_t count = 0;
 
         Square dupes[12];
 
-        for (auto j = 0; j < 12; j++) {
+        for (size_t j = 0; j < 12; j++) {
             // check if ith bit is set starting from left (msb)
             // msb = index 0, and so on
             if ((brd.bitboards[j] >> i) & 1) {
