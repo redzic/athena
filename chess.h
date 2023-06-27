@@ -425,14 +425,14 @@ _OptSize _NoInline void print_bitboard(u64 bitboard) {
 consteval u64 knight_attack_map(u8 sqr_idx) {
     u64 attack_map = 0;
 
-    constexpr std::tuple<int, int> knight_offsets[8] = {
+    constexpr std::tuple<i32, i32> knight_offsets[8] = {
         {1, 2}, {2, 1}, {-1, 2}, {-2, 1}, {1, -2}, {2, -1}, {-1, -2}, {-2, -1},
     };
 
-    const auto x_idx = sqr_idx % 8;
-    const auto y_idx = sqr_idx / 8;
+    const u32 x_idx = sqr_idx % 8;
+    const u32 y_idx = sqr_idx / 8;
 
-    for (const auto& [dx, dy] : knight_offsets) {
+    for (auto [dx, dy] : knight_offsets) {
         const int new_x = x_idx + dx;
         const int new_y = y_idx + dy;
 
@@ -445,7 +445,7 @@ consteval u64 knight_attack_map(u8 sqr_idx) {
     return attack_map;
 }
 
-consteval std::array<u64, 64> build_knight_table() {
+consteval auto build_knight_table() {
     std::array<u64, 64> table;
 
     for (size_t i = 0; i < 64; i++) {
@@ -468,7 +468,7 @@ _ForceInline constexpr u64 knight_attacks(const Board& brd, u8 sqr_idx) {
 
 // TODO add in checking of white/black/occup
 // TODO fix const on this
-constexpr bool is_board_valid_debug(Board brd) {
+constexpr bool is_board_valid_debug(const Board& brd) {
     bool is_valid = true;
 
     for (u32 i = 0; i < 64; i++) {

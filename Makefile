@@ -1,4 +1,4 @@
-COMPILER ?= /opt/homebrew/Cellar/llvm/16.0.5/bin/clang++
+COMPILER ?= /opt/homebrew/Cellar/llvm/16.0.6/bin/clang++
 CXXFLAGS = -std=c++2b -O3 -Wall -Wpedantic
 BUILD_DIR = ./build
 SRC_FILES = main.cpp
