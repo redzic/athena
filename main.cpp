@@ -60,27 +60,30 @@ void print_2x2(u8 x) {
 }
 
 int main(int argc, char** argv) {
-    // auto brd = Board::starting_position();
+    auto brd = Board::starting_position();
     // auto brd = random_board();
 
-    // u8 x = 0b0110;
+    u64 new_wr = 1ull << 30;
+    brd.wr() |= new_wr;
+    brd.white() |= new_wr;
+    brd.occup() |= new_wr;
 
-    // print_2x2(x);
+    u64 bq = 1ull << (30 - 4);
+    brd.bq() |= bq;
+    brd.black() |= bq;
+    brd.occup() |= bq;
 
-    // std::cout << "=============\n";
+    assert(is_board_valid_debug(brd));
 
-    // print_2x2(rev_low4(x));
+    print_board(brd);
+    // print_bitboard(rook_attack_map(30));
+    // wr in middle of board index
+    // print_bitboard(rook_attack_fix2(30, brd.occup()));
+    // print_bitboard(rook_attacks<White>(30, brd.occup()));
+    print_bitboard(rook_attacks<White>(brd, 30));
 
-    u64 res = 0;
-    for (auto i = 0; i < 8; i++) {
-        res |= (1ull << i) << (8 * i);
-        res |= (1ull << (i + 2)) << (8 * i);
-    }
-
-    std::cout << "original data:\n";
-    print_bitboard(res);
-    std::cout << "horizontally mirrored:\n";
-    print_bitboard(mirror_horizontal(res));
+    // so this is the file that is being run
+    // when you do make run
 
     // for (auto n_idx : BitIterator(brd.wn())) {
     //     u64 atks = knight_attacks<White>(brd, n_idx);

@@ -421,11 +421,15 @@ _OptSize _NoInline void print_bitboard(u64 bitboard) {
     std::cout.write(ostr.data(), ostr.size());
 }
 
+static consteval bool inbounds(auto x, auto y) {
+    return ((x >= 0 && x <= 7) && (y >= 0 && y <= 7));
+}
+
 // simple but slow implementation, only used to build table at compile-time
-consteval u64 knight_attack_map(u8 sqr_idx) {
+static consteval u64 knight_attack_map(u8 sqr_idx) {
     u64 attack_map = 0;
 
-    constexpr std::tuple<i32, i32> knight_offsets[8] = {
+    constexpr std::tuple<int, int> knight_offsets[8] = {
         {1, 2}, {2, 1}, {-1, 2}, {-2, 1}, {1, -2}, {2, -1}, {-1, -2}, {-2, -1},
     };
 
@@ -436,7 +440,7 @@ consteval u64 knight_attack_map(u8 sqr_idx) {
         const int new_x = x_idx + dx;
         const int new_y = y_idx + dy;
 
-        if ((new_x >= 0 && new_x <= 7) && (new_y >= 0 && new_y <= 7)) {
+        if (inbounds(new_x, new_y)) {
             u64 sqr = 1ull << (8 * new_y + new_x);
             attack_map |= sqr;
         }
@@ -530,14 +534,59 @@ constexpr u64 knight_attacks_multiple(u64 knights) {
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
 
-constexpr u64 rook_attacks(u8 sqr_idx) {
+template <bool h = true, bool v = true>
+constexpr u64 rook_attack_map(u8 sqr_idx) {
     // TODO make some kind of macro or function or something for this?
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
 
-    constexpr u64 file = broadcast_byte(1 << 7);
+    constexpr u64 file = broadcast_byte(1);
 
-    return (RANK8 >> (8 * y_idx)) ^ (file >> x_idx);
+    u64 result = 0;
+    if (h) {
+        result |= (RANK1 << (8 * y_idx));
+    }
+    if (v) {
+        result |= (file << x_idx);
+    }
+    return result;
+}
+
+inline u64 rook_attack_trick_vertical(u8 sqr_idx, u64 o) {
+    // slider
+    u64 s = 1ull << sqr_idx;
+
+    auto rev = [](u64 x) { return std::byteswap(x); };
+
+    auto m = rook_attack_map<false, true>(sqr_idx);
+    o &= m;
+
+    // u64 left = o ^ (o - 2 * s);
+    u64 line_attacks = (o - 2 * s) ^ rev(rev(o) - 2 * rev(s));
+
+    return line_attacks & m;
+}
+
+inline u64 rook_attack_trick(u8 sqr_idx, u64 o) {
+    u64 result_v = rook_attack_trick_vertical(sqr_idx, o);
+    // slider
+    u64 s = 1ull << sqr_idx;
+
+    auto rev = mirror_horizontal;
+    auto m = rook_attack_map<true, false>(sqr_idx);
+    o &= m;
+
+    // horizontal parts only I guess?
+    u64 line_attacks = (o - 2 * s) ^ rev(rev(o) - 2 * rev(s));
+
+    return (line_attacks & m) | result_v;
+}
+
+template <PieceColor c> inline u64 rook_attacks(Board& board, u8 sqr_idx) {
+    auto result = rook_attack_trick(sqr_idx, board.occup());
+    // prevent self capture
+    result &= ~board.color<c>();
+    return result;
 }
 
 void print_bits(auto x, bool print_32 = false) {
