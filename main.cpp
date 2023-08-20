@@ -63,10 +63,10 @@ int main(int argc, char** argv) {
     auto brd = Board::starting_position();
     // auto brd = random_board();
 
-    u64 new_wr = 1ull << 30;
-    brd.wr() |= new_wr;
-    brd.white() |= new_wr;
-    brd.occup() |= new_wr;
+    u64 new_wb = 1ull << 30;
+    brd.wb() |= new_wb;
+    brd.white() |= new_wb;
+    brd.occup() |= new_wb;
 
     u64 bq = 1ull << (30 - 4);
     brd.bq() |= bq;
@@ -80,7 +80,9 @@ int main(int argc, char** argv) {
     // wr in middle of board index
     // print_bitboard(rook_attack_fix2(30, brd.occup()));
     // print_bitboard(rook_attacks<White>(30, brd.occup()));
-    print_bitboard(rook_attacks<White>(brd, 30));
+    // print_bitboard(rook_attacks<White>(brd, 30));
+    // print_bitboard(bishop_attack_map<false>(30));
+    print_bitboard(bishop_attacks_full<White>(brd, 30));
 
     // so this is the file that is being run
     // when you do make run

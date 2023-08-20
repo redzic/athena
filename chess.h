@@ -421,7 +421,7 @@ _OptSize _NoInline void print_bitboard(u64 bitboard) {
     std::cout.write(ostr.data(), ostr.size());
 }
 
-static consteval bool inbounds(auto x, auto y) {
+static inline consteval bool inbounds(auto x, auto y) {
     return ((x >= 0 && x <= 7) && (y >= 0 && y <= 7));
 }
 
@@ -587,6 +587,71 @@ template <PieceColor c> inline u64 rook_attacks(Board& board, u8 sqr_idx) {
     // prevent self capture
     result &= ~board.color<c>();
     return result;
+}
+
+template <bool is_lr> consteval u64 generate_bishop_attack_map(u8 sqr_idx) {
+    const int x_idx = sqr_idx % 8;
+    const int y_idx = sqr_idx / 8;
+
+    constexpr std::array<std::pair<int, int>, 2> dirs_lr = {{{1, 1}, {-1, -1}}};
+    constexpr std::array<std::pair<int, int>, 2> dirs_rl = {{{1, -1}, {-1, 1}}};
+
+    u64 map = 0;
+
+    auto dirs = is_lr ? &dirs_lr : &dirs_rl;
+
+    for (const auto [xd, yd] : *dirs) {
+        int x = x_idx;
+        int y = y_idx;
+        int i = 1;
+        while (inbounds(x + i * xd, y + i * yd)) {
+            map |= 1ull << (8 * (y + i * yd) + x + i * xd);
+
+            i++;
+        }
+    }
+
+    return map;
+}
+
+template <bool is_lr> consteval std::array<u64, 64> generate_bishop_map() {
+    std::array<u64, 64> ret;
+    for (int i = 0; i < 64; i++) {
+        ret[i] = generate_bishop_attack_map<is_lr>(i);
+    }
+    return ret;
+}
+
+// bottom right = (0,0)
+
+constexpr auto bishop_map_lr = generate_bishop_map<true>();
+constexpr auto bishop_map_rl = generate_bishop_map<false>();
+
+// lr = left to right
+template <bool is_lr> constexpr u64 bishop_attack_map(u8 sqr_idx) {
+    auto lut = is_lr ? &bishop_map_lr : &bishop_map_rl;
+    return lut->data()[sqr_idx];
+}
+
+template <bool is_lr> inline u64 bishop_attacks_dir(u8 sqr_idx, u64 o) {
+    u64 s = 1ull << sqr_idx;
+
+    auto rev = [](u64 x) { return std::byteswap(x); };
+
+    auto m = bishop_attack_map<is_lr>(sqr_idx);
+    o &= m;
+
+    // u64 left = o ^ (o - 2 * s);
+    u64 line_attacks = (o - 2 * s) ^ rev(rev(o) - 2 * rev(s));
+
+    return line_attacks & m;
+}
+
+template <PieceColor c> u64 bishop_attacks_full(Board& board, u8 sqr_idx) {
+    auto lr = bishop_attacks_dir<true>(sqr_idx, board.occup());
+    auto rl = bishop_attacks_dir<false>(sqr_idx, board.occup());
+
+    return (lr ^ rl) & ~board.color<c>();
 }
 
 void print_bits(auto x, bool print_32 = false) {
