@@ -1,4 +1,5 @@
-COMPILER ?= /opt/homebrew/Cellar/llvm/16.0.6/bin/clang++
+# TODO just switch to cmake
+COMPILER ?= /opt/homebrew/Cellar/llvm/17.0.1/bin/clang++
 CXXFLAGS = -std=c++2b -O3 -Wall -Wpedantic
 BUILD_DIR = ./build
 SRC_FILES = main.cpp

@@ -4,6 +4,24 @@
 #include <cassert>
 #include <iostream>
 
+// TODO maybe this shouldn't be a template to avoid bloat
+// and instead be like a function taking whatever arguments
+// and use LUT to call appropriate function
+// so code bloat is reduced a lot
+template <PieceColor c, PieceType pt> void iterate_moves(Board& brd) {
+    for (auto n_idx : BitIterator(brd.wn())) {
+        u64 atks = knight_attacks<White>(brd, n_idx);
+        for (auto atk_idx : BitIterator(atks)) {
+            auto undo =
+                make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+
+            // use_board(brd);
+
+            undo_move(brd, undo);
+        }
+    }
+}
+
 void iterate_knight_moves(Board& brd) {
     // if there is a forward pawn move (no capture)
     // then that means that there is either a pawn
@@ -82,22 +100,6 @@ int main(int argc, char** argv) {
     // print_bitboard(rook_attacks<White>(30, brd.occup()));
     // print_bitboard(rook_attacks<White>(brd, 30));
     // print_bitboard(bishop_attack_map<false>(30));
-    print_bitboard(bishop_attacks_full<White>(brd, 30));
-
-    // so this is the file that is being run
-    // when you do make run
-
-    // for (auto n_idx : BitIterator(brd.wn())) {
-    //     u64 atks = knight_attacks<White>(brd, n_idx);
-    //     for (auto atk_idx : BitIterator(atks)) {
-    //         auto undo =
-    //             make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
-
-    //         print_board(brd);
-    //         // print_bitboard(brd.occup());
-    //         // print_bitboard(std::byteswap(brd.occup()));
-
-    //         undo_move(brd, undo);
-    //     }
-    // }
+    // print_bitboard(bishop_attacks<White>(brd, 30));
+    print_bitboard(queen_attacks<White>(brd, 30));
 }

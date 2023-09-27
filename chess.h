@@ -600,7 +600,7 @@ template <bool is_lr> consteval u64 generate_bishop_attack_map(u8 sqr_idx) {
 
     auto dirs = is_lr ? &dirs_lr : &dirs_rl;
 
-    for (const auto [xd, yd] : *dirs) {
+    for (const auto& [xd, yd] : *dirs) {
         int x = x_idx;
         int y = y_idx;
         int i = 1;
@@ -629,8 +629,8 @@ constexpr auto bishop_map_rl = generate_bishop_map<false>();
 
 // lr = left to right
 template <bool is_lr> constexpr u64 bishop_attack_map(u8 sqr_idx) {
-    auto lut = is_lr ? &bishop_map_lr : &bishop_map_rl;
-    return lut->data()[sqr_idx];
+    auto lut = is_lr ? bishop_map_lr.data() : bishop_map_rl.data();
+    return lut[sqr_idx];
 }
 
 template <bool is_lr> inline u64 bishop_attacks_dir(u8 sqr_idx, u64 o) {
@@ -641,17 +641,26 @@ template <bool is_lr> inline u64 bishop_attacks_dir(u8 sqr_idx, u64 o) {
     auto m = bishop_attack_map<is_lr>(sqr_idx);
     o &= m;
 
-    // u64 left = o ^ (o - 2 * s);
     u64 line_attacks = (o - 2 * s) ^ rev(rev(o) - 2 * rev(s));
 
     return line_attacks & m;
 }
 
-template <PieceColor c> u64 bishop_attacks_full(Board& board, u8 sqr_idx) {
+// MAIN FUNCTION FOR BISHOP STUFF
+template <PieceColor c> u64 bishop_attacks(Board& board, u8 sqr_idx) {
     auto lr = bishop_attacks_dir<true>(sqr_idx, board.occup());
     auto rl = bishop_attacks_dir<false>(sqr_idx, board.occup());
 
     return (lr ^ rl) & ~board.color<c>();
+}
+
+template <PieceColor c> inline u64 queen_attacks(Board& board, u8 sqr_idx) {
+    auto rook = rook_attack_trick(sqr_idx, board.occup());
+    auto lr = bishop_attacks_dir<true>(sqr_idx, board.occup());
+    auto rl = bishop_attacks_dir<false>(sqr_idx, board.occup());
+    auto bishop = lr ^ rl;
+
+    return (rook | bishop) & ~board.color<c>();
 }
 
 void print_bits(auto x, bool print_32 = false) {
@@ -860,7 +869,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
 }
 
 template <PieceColor c> constexpr void undo_move(Board& brd, UndoTag<c> undo) {
-    u64 switcher = (1ull << undo.from) ^ (1ull << undo.to);
+    u64 switcher = (1ull << undo.from) | (1ull << undo.to);
     brd.bitboards[c * 6 + undo.piece_type] ^= switcher;
     brd.bitboards[12 + c] ^= switcher;
 
