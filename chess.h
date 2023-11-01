@@ -398,6 +398,7 @@ _OptSize _NoInline void print_board(const Board& brd) {
 #endif
 
     static_assert(sizeof(char) == 1);
+    std::cout << '\n';
     std::cout.write(ostr.data(), ostr.size());
 }
 
