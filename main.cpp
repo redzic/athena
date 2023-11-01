@@ -32,7 +32,7 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
     // TODO: is it worth checking if bitboard for that is 0 already, and
     // skip the loop? Probably not I guess.
 
-    for (auto to_idx : BitIterator(pawn_forward1_attacks<White>(brd))) {
+    for (auto to_idx : BitIterator(pawn_forward1_attacks<c>(brd))) {
         n_moves++;
 
         // now we need to encode the move
@@ -41,17 +41,22 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
         // Check assembly on godbolt.
         Move mv(static_cast<int>(to_idx) + pawn_fwd1, to_idx);
         auto undo_tag = make_move_undoable<c, Pawn>(brd, mv);
+
+        // print_board(brd);
+
         callback(brd);
         undo_move(brd, undo_tag);
     }
 
     // TODO does order of this affect performance in some way?
     // if it makes a big difference then that could be explored further.
-    for (auto to_idx : BitIterator(pawn_forward2_attacks<White>(brd))) {
+    for (auto to_idx : BitIterator(pawn_forward2_attacks<c>(brd))) {
         n_moves++;
 
         Move mv(static_cast<int>(to_idx) + 2 * pawn_fwd1, to_idx);
         auto undo_tag = make_move_undoable<c, Pawn>(brd, mv);
+        // print_board(brd);
+
         callback(brd);
         undo_move(brd, undo_tag);
     }
@@ -153,16 +158,20 @@ void print_2x2(u8 x) {
 
 // TODO - implement perft
 
-template <PieceColor c> u64 Perft(Board& brd, int depth) {
+// TODO figure out if we can avoid copying the board
+template <PieceColor c> u64 Perft(Board brd, int depth) {
     // MOVE move_list[256];
-    print_board(brd);
 
     u64 nodes = 0;
 
     if (depth == 0)
         return 1ULL;
 
+    // if (depth > 1)
     std::cout << "Perft: called with depth " << depth << '\n';
+    print_board(brd);
+    std::cout << PCOL_STR[c] << '\n';
+    std::cout << "==============================\n";
 
     // int n_moves = GenerateLegalMoves(move_list);
     // for (int i = 0; i < n_moves; i++) {
@@ -175,8 +184,10 @@ template <PieceColor c> u64 Perft(Board& brd, int depth) {
 
     // so we need to call this function... inside iterate_pawn_moves
 
-    nodes += iterate_pawn_moves<c>(
-        brd, [depth](Board& brd) { Perft<!c>(brd, depth - 1); });
+    nodes += iterate_pawn_moves<c>(brd, [depth](Board brd) {
+        print_board(brd);
+        Perft<!c>(brd, depth - 1);
+    });
 
     return nodes;
 }
@@ -186,8 +197,9 @@ int main(int argc, char** argv) {
 
     assert(is_board_valid_debug(brd));
 
+    // ok it actually seems correct now...
+
     int depth = 2;
-    // K the callback shit does not seem to actually work
     std::cout << "Perft(" << depth << ") = " << Perft<White>(brd, depth)
               << '\n';
 

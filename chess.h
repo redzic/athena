@@ -109,7 +109,9 @@ consteval u64 broadcast_byte(u8 b) {
     return 0x101010101010101ull * static_cast<u64>(b);
 }
 
-enum PieceColor : u8 { White, Black };
+enum PieceColor : u8 { White = 0, Black = 1 };
+
+static constexpr std::array<std::string_view, 2> PCOL_STR = {"White", "Black"};
 
 constexpr PieceColor operator!(PieceColor orig) {
     orig = static_cast<PieceColor>(!static_cast<u8>(orig));
