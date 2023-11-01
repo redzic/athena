@@ -6,19 +6,6 @@
 // and instead be like a function taking whatever arguments
 // and use LUT to call appropriate function
 // so code bloat is reduced a lot
-template <PieceColor c, PieceType pt> void iterate_moves(Board& brd) {
-    for (auto n_idx : BitIterator(brd.wn())) {
-        u64 atks = knight_attacks<White>(brd, n_idx);
-        for (auto atk_idx : BitIterator(atks)) {
-            auto undo =
-                make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
-
-            // use_board(brd);
-
-            undo_move(brd, undo);
-        }
-    }
-}
 
 // callback is passed the brd
 template <PieceColor c, class CallbackFunc>
@@ -32,6 +19,8 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
     // TODO: is it worth checking if bitboard for that is 0 already, and
     // skip the loop? Probably not I guess.
 
+    // TODO deduplicate code?
+
     for (auto to_idx : BitIterator(pawn_forward1_attacks<c>(brd))) {
         n_moves++;
 
@@ -41,8 +30,6 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
         // Check assembly on godbolt.
         Move mv(static_cast<int>(to_idx) + pawn_fwd1, to_idx);
         auto undo_tag = make_move_undoable<c, Pawn>(brd, mv);
-
-        // print_board(brd);
 
         callback(brd);
         undo_move(brd, undo_tag);
@@ -55,7 +42,6 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
 
         Move mv(static_cast<int>(to_idx) + 2 * pawn_fwd1, to_idx);
         auto undo_tag = make_move_undoable<c, Pawn>(brd, mv);
-        // print_board(brd);
 
         callback(brd);
         undo_move(brd, undo_tag);
@@ -64,83 +50,93 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
     return n_moves;
 }
 
-void iterate_knight_moves(Board& brd) {
-    // if there is a forward pawn move (no capture)
-    // then that means that there is either a pawn
-    // directly behind the target square, or two
-    // squares behind.
+// if there is a forward pawn move (no capture)
+// then that means that there is either a pawn
+// directly behind the target square, or two
+// squares behind.
 
-    // it is not possible for a pawn to be 2 away
-    // from the target square AND for there to be
-    // a pawn in between the target square and the
-    // original square.
+// it is not possible for a pawn to be 2 away
+// from the target square AND for there to be
+// a pawn in between the target square and the
+// original square.
 
-    // the possibilities are as follows:
+// the possibilities are as follows:
 
-    // 10 - 1 forward
-    // 11 - 1 forward
-    // 01 - 2 forward
+// 10 - 1 forward
+// 11 - 1 forward
+// 01 - 2 forward
 
-    // this means to find the index of the from square
-    // when iterating over the moves, you need both bits
+// this means to find the index of the from square
+// when iterating over the moves, you need both bits
 
-    // so just check if behind bit is set (>>8)
-    // if it is -> 1 forward
-    // else -> 2 forward
+// so just check if behind bit is set (>>8)
+// if it is -> 1 forward
+// else -> 2 forward
 
-    // 1->1
-    // 0->2
+// 1->1
+// 0->2
 
-    // now iterate over possible moves for that knight
+// now iterate over possible moves for that knight
 
-    // so I think for the types of moves where we can just
-    // generate a bitboard and use that, that's fine
-    // we just have separate functions for each type of
-    // attack
+// so I think for the types of moves where we can just
+// generate a bitboard and use that, that's fine
+// we just have separate functions for each type of
+// attack
 
-    // can still do like templated function but just
-    // have ifs for more specific cases or something idk
-    // So we have everything covered for basically like
-    // knight, rook, bishop, queen
-    // I guess king moves can also be done like in the same way
-    // but pawn moves maybe not.
+// can still do like templated function but just
+// have ifs for more specific cases or something idk
+// So we have everything covered for basically like
+// knight, rook, bishop, queen
+// I guess king moves can also be done like in the same way
+// but pawn moves maybe not.
 
-    // way this works, iterate over pieces of knight type,
-    // then get bitboard for attacks for that piece and then
-    // iterate over that
+// way this works, iterate over pieces of knight type,
+// then get bitboard for attacks for that piece and then
+// iterate over that
 
-    // pawns can probably be done a little bit better tho.
-    // Instead of by piece we can do by movement type.
-    // We could get the bitboard for 2 forward, 1 forward,
-    // and infer the piece that the move applies from context.
-    // Then for attacks, E.P.
-    // let's see...
+// pawns can probably be done a little bit better tho.
+// Instead of by piece we can do by movement type.
+// We could get the bitboard for 2 forward, 1 forward,
+// and infer the piece that the move applies from context.
+// Then for attacks, E.P.
+// let's see...
 
-    // well it's certainly possible for 2 pawns to both attack
-    // the same piece, but in such cases the directions will
-    // always be opposite.
+// well it's certainly possible for 2 pawns to both attack
+// the same piece, but in such cases the directions will
+// always be opposite.
 
-    // So we could separate the pawn attacks by direction
+// So we could separate the pawn attacks by direction
 
-    // then for E.P., well..
-    // the question for that one is can 2 pawns EP to the same
-    // square?
-    // I think only 1 possbile en passant move can exist
-    // for a particular turn given the rule of it just
-    // had to move... So this can just be handled as a
-    // separate step.
+// then for E.P., well..
+// the question for that one is can 2 pawns EP to the same
+// square?
+// I think only 1 possbile en passant move can exist
+// for a particular turn given the rule of it just
+// had to move... So this can just be handled as a
+// separate step.
 
-    for (auto n_idx : BitIterator(brd.wn())) {
-        u64 atks = knight_attacks<White>(brd, n_idx);
+// TODO Do we ALWAYS need to return the number of moves here
+// or is that only for perft?
+template <PieceColor c, class CallbackFunc>
+u32 iterate_knight_moves(Board& brd, CallbackFunc callback) {
+    u32 n_moves = 0;
+
+    for (auto n_idx : BitIterator(brd.knights<c>())) {
+        // TODO Does it end up being cheapter to just do popcnt?
+        u64 atks = knight_attacks<c>(brd, n_idx);
         for (auto atk_idx : BitIterator(atks)) {
-            auto undo =
-                make_move_undoable<White, Knight>(brd, Move(n_idx, atk_idx));
+            n_moves++;
 
-            // use_board(brd);
+            auto undo =
+                make_move_undoable<c, Knight>(brd, Move(n_idx, atk_idx));
+
+            callback(brd);
 
             undo_move(brd, undo);
         }
     }
+
+    return n_moves;
 }
 
 // now we just need some benchmarks for this
@@ -189,6 +185,11 @@ template <PieceColor c> u64 Perft(Board brd, int depth) {
         Perft<!c>(brd, depth - 1);
     });
 
+    nodes += iterate_knight_moves<c>(brd, [depth](Board brd) {
+        print_board(brd);
+        Perft<!c>(brd, depth - 1);
+    });
+
     return nodes;
 }
 
@@ -199,7 +200,7 @@ int main(int argc, char** argv) {
 
     // ok it actually seems correct now...
 
-    int depth = 2;
+    int depth = 1;
     std::cout << "Perft(" << depth << ") = " << Perft<White>(brd, depth)
               << '\n';
 

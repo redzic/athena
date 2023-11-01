@@ -165,6 +165,8 @@ struct Board {
     // returns new board of standard starting chess position
     static constexpr Board starting_position();
 
+    // maybe these should all be renamed to verbose version so it's
+    // easier to catch bugs...
     constexpr u64& wp() & noexcept { return bitboards[0]; }
     constexpr u64& wn() & noexcept { return bitboards[1]; }
     constexpr u64& wr() & noexcept { return bitboards[2]; }
