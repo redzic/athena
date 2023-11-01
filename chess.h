@@ -470,6 +470,41 @@ _ForceInline constexpr u64 knight_attacks(const Board& brd, u8 sqr_idx) {
     return KNIGHT_ATTACK_TABLE[sqr_idx] & ~brd.color<c>();
 }
 
+// TODO maybe get rid of all const function parameters? idk
+template <PieceColor c> constexpr u64 pawn_forward2_attacks(Board& brd) {
+    u64 mask = is_white(c) ? RANK2 : RANK7;
+    u64 pawns = brd.pawns<c>() & mask;
+
+    u64 pawns_moved = is_white(c) ? pawns << 16 : pawns >> 16;
+    // possible moves that are not already occupied
+    // since these are all non-caturing moves
+    return pawns_moved & ~brd.occup();
+}
+
+template <PieceColor c> constexpr u64 pawn_forward1_attacks(Board& brd) {
+    u64 pawns = brd.pawns<c>();
+    u64 pawns_moved = is_white(c) ? pawns << 8 : pawns >> 8;
+    return pawns_moved & ~brd.occup();
+}
+
+// attack right in absolute direction, i.e. from perspective of
+// white, not from relative perspective
+template <PieceColor c> constexpr u64 pawn_right_attacks(Board& brd) {
+    constexpr u64 mask = ~broadcast_byte(1);
+    u64 pawns = brd.pawns<c>() & mask;
+    u64 pawns_moved = is_white(c) ? pawns << 7 : pawns >> 9;
+    // must be a capture of opposite color
+    return pawns_moved & brd.color<!c>();
+}
+
+template <PieceColor c> constexpr u64 pawn_left_attacks(Board& brd) {
+    constexpr u64 mask = ~broadcast_byte(1 << 7);
+    u64 pawns = brd.pawns<c>() & mask;
+    u64 pawns_moved = is_white(c) ? pawns << 9 : pawns >> 7;
+    // must be a capture of opposite color
+    return pawns_moved & brd.color<!c>();
+}
+
 // TODO add in checking of white/black/occup
 // TODO fix const on this
 constexpr bool is_board_valid_debug(const Board& brd) {
@@ -807,6 +842,11 @@ template <PieceColor c> struct UndoTag {
 
 template <PieceColor c, PieceType t>
 constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
+    // TODO this might need to be updated when we do
+    // en passant
+    // as capture square isn't the same as
+    // where piece actually was (I think)
+
     // TODO maybe add debug_asserts to check for self-capture
     constexpr PieceColor to_mv = c;
     constexpr PieceColor enemy = !to_mv;
@@ -828,6 +868,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
     auto capture = brd.color<enemy>() & new_piece;
 
     if (capture) {
+        // figure out which piece type was captured
         u64 b1 = brd.pawns<enemy>() & new_piece;
         u64 b2 = std::rotr(brd.knights<enemy>() & new_piece, 1);
         u64 b3 = std::rotr(brd.rooks<enemy>() & new_piece, 2);
