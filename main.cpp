@@ -9,10 +9,9 @@
 
 // callback is passed the brd
 template <PieceColor c, class CallbackFunc>
-u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
+void iterate_pawn_moves(Board& brd, CallbackFunc callback) {
     // first iterate over forward2
     // TODO bit iterator can handle 0 properly right?
-    u32 n_moves = 0;
 
     constexpr int pawn_fwd1 = is_white(c) ? -8 : 8;
 
@@ -22,7 +21,6 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
     // TODO deduplicate code?
 
     for (auto to_idx : BitIterator(pawn_forward1_attacks<c>(brd))) {
-        n_moves++;
 
         // now we need to encode the move
         // TODO maybe faster to encode move by updating value
@@ -38,16 +36,12 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
     // TODO does order of this affect performance in some way?
     // if it makes a big difference then that could be explored further.
     for (auto to_idx : BitIterator(pawn_forward2_attacks<c>(brd))) {
-        n_moves++;
-
         Move mv(static_cast<int>(to_idx) + 2 * pawn_fwd1, to_idx);
         auto undo_tag = make_move_undoable<c, Pawn>(brd, mv);
 
         callback(brd);
         undo_move(brd, undo_tag);
     }
-
-    return n_moves;
 }
 
 // if there is a forward pawn move (no capture)
@@ -118,15 +112,11 @@ u32 iterate_pawn_moves(Board& brd, CallbackFunc callback) {
 // TODO Do we ALWAYS need to return the number of moves here
 // or is that only for perft?
 template <PieceColor c, class CallbackFunc>
-u32 iterate_knight_moves(Board& brd, CallbackFunc callback) {
-    u32 n_moves = 0;
-
+void iterate_knight_moves(Board& brd, CallbackFunc callback) {
     for (auto n_idx : BitIterator(brd.knights<c>())) {
         // TODO Does it end up being cheapter to just do popcnt?
         u64 atks = knight_attacks<c>(brd, n_idx);
         for (auto atk_idx : BitIterator(atks)) {
-            n_moves++;
-
             auto undo =
                 make_move_undoable<c, Knight>(brd, Move(n_idx, atk_idx));
 
@@ -135,8 +125,6 @@ u32 iterate_knight_moves(Board& brd, CallbackFunc callback) {
             undo_move(brd, undo);
         }
     }
-
-    return n_moves;
 }
 
 // now we just need some benchmarks for this
@@ -155,7 +143,8 @@ void print_2x2(u8 x) {
 // TODO - implement perft
 
 // TODO figure out if we can avoid copying the board
-template <PieceColor c> u64 Perft(Board brd, int depth) {
+// TODO
+template <PieceColor c> u64 Perft(Board& brd, u32 depth) {
     // MOVE move_list[256];
 
     u64 nodes = 0;
@@ -163,7 +152,6 @@ template <PieceColor c> u64 Perft(Board brd, int depth) {
     if (depth == 0)
         return 1ULL;
 
-    // if (depth > 1)
     std::cout << "Perft: called with depth " << depth << '\n';
     print_board(brd);
     std::cout << PCOL_STR[c] << '\n';
@@ -176,18 +164,12 @@ template <PieceColor c> u64 Perft(Board brd, int depth) {
     //     UndoMove(move_list[i]);
     // }
 
-    // so callback needs to take the parameter
-
-    // so we need to call this function... inside iterate_pawn_moves
-
-    nodes += iterate_pawn_moves<c>(brd, [depth](Board brd) {
-        print_board(brd);
-        Perft<!c>(brd, depth - 1);
+    iterate_pawn_moves<c>(brd, [depth, &nodes](Board brd) {
+        nodes += Perft<!c>(brd, depth - 1);
     });
 
-    nodes += iterate_knight_moves<c>(brd, [depth](Board brd) {
-        print_board(brd);
-        Perft<!c>(brd, depth - 1);
+    iterate_knight_moves<c>(brd, [depth, &nodes](Board brd) {
+        nodes += Perft<!c>(brd, depth - 1);
     });
 
     return nodes;
@@ -200,7 +182,7 @@ int main(int argc, char** argv) {
 
     // ok it actually seems correct now...
 
-    int depth = 1;
+    int depth = 2;
     std::cout << "Perft(" << depth << ") = " << Perft<White>(brd, depth)
               << '\n';
 
