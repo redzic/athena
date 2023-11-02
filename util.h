@@ -16,61 +16,46 @@ int randint(int min, int max) {
 
 // generate random board position... ugh...
 
-constexpr Board mailbox_to_bitboard(const Mailbox& brd) {
-    std::array<u64, 12> bitboards;
-    std::fill(bitboards.begin(), bitboards.end(), 0ull);
+// Board random_board() {
+//     Mailbox brd;
+//     std::fill(brd.begin(), brd.end(), Square::Empty);
 
-    for (auto i = 0; i < 64; i++) {
-        if (brd[i] != Square::Empty) {
-            bitboards[brd[i]] |= (1ull << i);
-        }
-    }
+//     std::tuple<Square, int> pieces[] = {{Square::WhitePawn, randint(0, 8)},
+//                                         {Square::WhiteKnight, 1},
+//                                         {Square::WhiteRook, randint(0, 2)},
+//                                         {Square::WhiteBishop, randint(0, 2)},
+//                                         {Square::WhiteQueen, randint(0, 1)},
+//                                         {Square::WhiteKing, 1},
+//                                         {Square::BlackPawn, randint(0, 8)},
+//                                         {Square::BlackKnight, randint(0, 2)},
+//                                         {Square::BlackRook, randint(0, 2)},
+//                                         {Square::BlackBishop, randint(0, 2)},
+//                                         {Square::BlackQueen, randint(0, 1)},
+//                                         {Square::BlackKing, 1}};
 
-    return Board(bitboards[0], bitboards[1], bitboards[2], bitboards[3],
-                 bitboards[4], bitboards[5], bitboards[6], bitboards[7],
-                 bitboards[8], bitboards[9], bitboards[10], bitboards[11]);
-}
+//     auto output_idx = 0;
 
-Board random_board() {
-    Mailbox brd;
-    std::fill(brd.begin(), brd.end(), Square::Empty);
+//     for (const auto& [piece, count] : pieces) {
+//         for (auto i = 0; i < count; i++)
+//             brd[output_idx++] = piece;
+//     }
 
-    std::tuple<Square, int> pieces[] = {{Square::WhitePawn, randint(0, 8)},
-                                        {Square::WhiteKnight, 1},
-                                        {Square::WhiteRook, randint(0, 2)},
-                                        {Square::WhiteBishop, randint(0, 2)},
-                                        {Square::WhiteQueen, randint(0, 1)},
-                                        {Square::WhiteKing, 1},
-                                        {Square::BlackPawn, randint(0, 8)},
-                                        {Square::BlackKnight, randint(0, 2)},
-                                        {Square::BlackRook, randint(0, 2)},
-                                        {Square::BlackBishop, randint(0, 2)},
-                                        {Square::BlackQueen, randint(0, 1)},
-                                        {Square::BlackKing, 1}};
+//     assert(output_idx <= 64);
 
-    auto output_idx = 0;
+//     std::shuffle(brd.begin(), brd.end(),
+//                  std::default_random_engine(std::random_device()()));
 
-    for (const auto& [piece, count] : pieces) {
-        for (auto i = 0; i < count; i++)
-            brd[output_idx++] = piece;
-    }
+//     auto bb = mailbox_to_bitboard(brd);
 
-    assert(output_idx <= 64);
+//     // remove pawns on 1st and 8th ranks
 
-    std::shuffle(brd.begin(), brd.end(),
-                 std::default_random_engine(std::random_device()()));
+//     u64 removed_pawns = (bb.bp() | bb.wp()) & (RANK1 | RANK8);
 
-    auto bb = mailbox_to_bitboard(brd);
+//     bb.white() &= ~(bb.wp() & (RANK1 | RANK8));
+//     bb.black() &= ~(bb.bp() & (RANK1 | RANK8));
+//     bb.wp() &= ~(RANK1 | RANK8);
+//     bb.bp() &= ~(RANK1 | RANK8);
+//     bb.occup() &= ~removed_pawns;
 
-    // remove pawns on 1st and 8th ranks
-
-    u64 removed_pawns = (bb.bp() | bb.wp()) & (RANK1 | RANK8);
-
-    bb.white() &= ~(bb.wp() & (RANK1 | RANK8));
-    bb.black() &= ~(bb.bp() & (RANK1 | RANK8));
-    bb.wp() &= ~(RANK1 | RANK8);
-    bb.bp() &= ~(RANK1 | RANK8);
-    bb.occup() &= ~removed_pawns;
-
-    return bb;
-}
+//     return bb;
+// }

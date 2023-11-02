@@ -1,4 +1,5 @@
 #include "chess.h"
+
 #include <cassert>
 #include <iostream>
 
@@ -30,6 +31,7 @@ void iterate_pawn_moves(Board& brd, CallbackFunc callback) {
         auto undo_tag = make_move_undoable<c, Pawn>(brd, mv);
 
         callback(brd);
+        // SEGFAULT is happening on this line...
         undo_move(brd, undo_tag);
     }
 
@@ -114,8 +116,7 @@ void iterate_moves(Board& brd, CallbackFunc callback) {
     for (auto n_idx : BitIterator(brd.board<c, pt>())) {
         u64 atks = MoveGenerator(brd, n_idx);
         for (auto atk_idx : BitIterator(atks)) {
-            auto undo =
-                make_move_undoable<c, Bishop>(brd, Move(n_idx, atk_idx));
+            auto undo = make_move_undoable<c, pt>(brd, Move(n_idx, atk_idx));
 
             callback(brd);
 
@@ -124,32 +125,25 @@ void iterate_moves(Board& brd, CallbackFunc callback) {
     }
 }
 
-// now we just need some benchmarks for this
+// need to add some code to do FEN string parse/dump
 
-// now we basically just need a way to make sure
-// you can only make legal moves (do not put you in check)
+u64 perft_id = 0;
 
-void print_2x2(u8 x) {
-    u8 top = (x & 0b1100) >> 2;
-    u8 bottom = x & 0b11;
-
-    std::cout << std::bitset<2>(top) << '\n';
-    std::cout << std::bitset<2>(bottom) << '\n';
-}
-
-// TODO - implement perft
-
-// TODO figure out if we can avoid copying the board
-// TODO
 template <PieceColor c> u64 Perft(Board& brd, u32 depth) {
+
     u64 nodes = 0;
+
+    assert(depth >= 0);
+
+    u64 id = perft_id++;
+
+    std::cout << "[START] Perft (id: " << id << "): called with depth " << depth
+              << '\n';
+    std::cout << PCOL_STR[c] << '\n';
+    std::cout << "==============================\n";
 
     if (depth == 0)
         return 1ULL;
-
-    std::cout << "Perft: called with depth " << depth << '\n';
-    std::cout << PCOL_STR[c] << '\n';
-    std::cout << "==============================\n";
 
     // int n_moves = GenerateLegalMoves(move_list);
     // for (int i = 0; i < n_moves; i++) {
@@ -160,28 +154,46 @@ template <PieceColor c> u64 Perft(Board& brd, u32 depth) {
 
     // deduplicate?
 
-    iterate_pawn_moves<c>(brd, [depth, &nodes](Board brd) {
+    // // Board & needs to be called with reference, not copy!!
+    // // Serious issue here!! Otherwise UB happens!
+    iterate_pawn_moves<c>(brd, [depth, &nodes](Board& brd) {
         nodes += Perft<!c>(brd, depth - 1);
     });
-
-    // iterate_knight_moves<c>(brd, [depth, &nodes](Board brd) {
-    //     nodes += Perft<!c>(brd, depth - 1);
-    // });
 
     // (board, starting piece index)
     iterate_moves<Knight, c,
                   [](Board& brd, u32 piece_idx /* starting piece index*/) {
                       return knight_attacks<c>(brd, piece_idx);
-                  }>(brd, [depth, &nodes](Board brd) {
+                  }>(brd, [depth, &nodes](Board& brd) {
         nodes += Perft<!c>(brd, depth - 1);
     });
 
+    // TODO deduplicate this code?
     iterate_moves<Bishop, c,
                   [](Board& brd, u32 piece_idx /* starting piece index*/) {
                       return bishop_attacks<c>(brd, piece_idx);
-                  }>(brd, [depth, &nodes](Board brd) {
+                  }>(brd, [depth, &nodes](Board& brd) {
         nodes += Perft<!c>(brd, depth - 1);
     });
+
+    iterate_moves<Rook, c,
+                  [](Board& brd, u32 piece_idx /* starting piece index*/) {
+                      return rook_attacks<c>(brd, piece_idx);
+                  }>(brd, [depth, &nodes](Board& brd) {
+        nodes += Perft<!c>(brd, depth - 1);
+    });
+
+    iterate_moves<Queen, c,
+                  [](Board& brd, u32 piece_idx /* starting piece index*/) {
+                      return queen_attacks<c>(brd, piece_idx);
+                  }>(brd, [depth, &nodes](Board& brd) {
+        nodes += Perft<!c>(brd, depth - 1);
+    });
+
+    // king moves
+
+    std::cout << "[END] Perft(" << depth << ") = " << nodes
+              << " nodes (id: " << id << ")\n";
 
     return nodes;
 }
@@ -199,6 +211,20 @@ int main(int argc, char** argv) {
     int depth = 3;
     std::cout << "Perft(" << depth << ") = " << Perft<White>(brd, depth)
               << '\n';
+
+    std::cout << "Finished calling Perft.\n";
+
+    // auto brd2 = parse_fen_string(
+    //     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+
+    // assert(is_board_valid_debug(brd2));
+    // if (is_board_valid_debug(brd2)) {
+    //     std::cout << "Board is valid! :)\n";
+    // }
+
+    // print_board(brd2);
+
+    // ========================================================
 
     // auto brd = random_board();
 

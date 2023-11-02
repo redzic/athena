@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <bitset>
@@ -148,8 +149,8 @@ constexpr bool is_pawn(const Square sqr) {
 static constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
     'P', 'N', 'R', 'B', 'Q', 'K', 'p', 'n', 'r', 'b', 'q', 'k', '.'};
 
-// inefficient :( but hard to make cross platform more efficiently because of
-// platforms not necessarily being utf-8.
+// inefficient :( but hard to make cross platform more efficiently because
+// of platforms not necessarily being utf-8.
 
 // Colors might look inverted on a dark theme
 // static constexpr std::array<std::string_view, 12> UNICODE_PIECE_LOOKUP{
@@ -157,8 +158,8 @@ static constexpr std::array<char, 13> CHAR_PIECE_LOOKUP{
 //     "\u265F", "\u265E", "\u265C", "\u265D", "\u265B", "\u265A"};
 
 struct Board {
-    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black, occupancy
-    // (white and black)
+    // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black,
+    // occupancy (white and black)
     u64 bitboards[12 + 3];
 
   public:
@@ -320,7 +321,7 @@ struct Move {
     u16 to : 6;
     u16 padding_bits : 4;
 
-    constexpr Move(u16 from, u16 to) : from(from), to(to) {}
+    constexpr Move(u16 from_, u16 to_) : from(from_), to(to_) {}
 };
 
 constexpr u64 mirror_horizontal(u64 x) {
@@ -374,7 +375,8 @@ _OptSize _NoInline inline void print_board(const Board& brd) {
     std::array<char, board_start.size()> ostr;
     memcpy(ostr.data(), board_start.data(), board_start.size());
 
-#if defined(__aarch64__)
+// #if defined(__aarch64__)
+#if 0
     const auto lut = vld1q_u8((const unsigned char*)CHAR_PIECE_LOOKUP.data());
     static constexpr std::array<char, 16> row_data = {
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', '\n',
@@ -873,25 +875,38 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
 
     auto capture = brd.color<enemy>() & new_piece;
 
+    // to = captured piece index
+
     if (capture) {
+        // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black,
+
         // figure out which piece type was captured
         u64 b1 = brd.pawns<enemy>() & new_piece;
-        u64 b2 = std::rotr(brd.knights<enemy>() & new_piece, 1);
-        u64 b3 = std::rotr(brd.rooks<enemy>() & new_piece, 2);
-        u64 b4 = std::rotr(brd.bishops<enemy>() & new_piece, 3);
-        u64 b5 = std::rotr(brd.queens<enemy>() & new_piece, 4);
-        u64 b6 = std::rotr(brd.king<enemy>() & new_piece, 5);
+        u64 b2 = std::rotl(brd.knights<enemy>() & new_piece, 1);
+        u64 b3 = std::rotl(brd.rooks<enemy>() & new_piece, 2);
+        u64 b4 = std::rotl(brd.bishops<enemy>() & new_piece, 3);
+        u64 b5 = std::rotl(brd.queens<enemy>() & new_piece, 4);
+        u64 b6 = std::rotl(brd.king<enemy>() & new_piece, 5);
 
         // perhaps this can be explicitly vectorized with shift+movemask
         // (extract msb)
 
-        u64 b7 = std::rotl(b1 | b2 | b3 | b4 | b5 | b6, mv.to);
+        u64 b7 = std::rotr(b1 | b2 | b3 | b4 | b5 | b6, mv.to);
 
         // assuming valid board, this should contain exactly 1 bit
+        assert(b7 != 0);
         __assume(b7 != 0);
-        u32 capture_idx = std::countl_zero(b7);
 
-        brd.bitboards[(!c) * 6 + capture_idx] ^= new_piece;
+        // left = msb, right = lsb
+        u32 capture_pt = std::countr_zero(b7);
+
+        assert(capture_pt < 6);
+
+        // so this is not correct...
+        // capture_idx is getting the wrong value somehow
+        // std::cout << "Capture idx: " << capture_idx << '\n';
+
+        brd.bitboards[(!c) * 6 + capture_pt] ^= new_piece;
         brd.color<enemy>() ^= new_piece;
 
         return UndoTag<c>{
@@ -899,7 +914,7 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
             .to = mv.to,
             .piece_type = t,
             .capture = 1,
-            .capture_piece_type = capture_idx,
+            .capture_piece_type = capture_pt,
         };
     } else {
         // no need to update if capture, since this bit was already set by
@@ -971,4 +986,71 @@ constexpr void make_move(Board& brd, Move mv) {
         // old enemy piece
         brd.occup() |= new_piece;
     }
+}
+
+// maybe convert all this to modules to modularize it
+
+// [0] = H1
+constexpr Board mailbox_to_bitboard(const Mailbox& brd) {
+    std::array<u64, 12> bitboards;
+    std::fill(bitboards.begin(), bitboards.end(), 0ull);
+
+    for (auto i = 0; i < 64; i++) {
+        if (brd[i] != Square::Empty) {
+            bitboards[brd[i]] |= (1ull << i);
+        }
+    }
+
+    return Board(bitboards[0], bitboards[1], bitboards[2], bitboards[3],
+                 bitboards[4], bitboards[5], bitboards[6], bitboards[7],
+                 bitboards[8], bitboards[9], bitboards[10], bitboards[11]);
+}
+
+// static std::tuple<PieceType,PieceColor>
+// parse_char()
+
+inline std::string dump_fen_string(Board& brd) {
+    std::string fen = "";
+
+    return fen;
+}
+
+// TODO break up this file into smaller files
+inline Board parse_fen_string(std::string_view fen) {
+    Mailbox board;
+    // TODO make this a struct instead of typedef that automatically
+    // initializes to empty
+    std::fill(board.begin(), board.end(), Square::Empty);
+
+    // uhh... why does it need to be filled backwards again?
+    // just want to understand for myself
+
+    int idx = 63;
+    for (char c : fen) {
+        if (c == ' ')
+            break;
+
+        if (c >= '1' && c <= '8') {
+            // handle digit
+            int niter = ((int)c) - (int)'0';
+            while (niter--) {
+                board[idx--] = Square::Empty;
+            }
+            continue;
+        }
+
+        if (c == '/') {
+            continue;
+        }
+
+        for (int i = 0; i < 12; i++) {
+            if (c == CHAR_PIECE_LOOKUP[i]) {
+                board[idx--] = static_cast<Square>(i);
+                continue;
+            }
+        }
+    }
+
+    //
+    return mailbox_to_bitboard(board);
 }
