@@ -1,5 +1,6 @@
 #include "chess.h"
 
+#include <bit>
 #include <cassert>
 #include <iostream>
 
@@ -125,6 +126,17 @@ void iterate_moves(Board& brd, CallbackFunc callback) {
     }
 }
 
+template <PieceColor c, class CallbackFunc>
+void iterate_king_moves(Board& brd, CallbackFunc callback) {
+    auto k_idx = std::countr_zero(brd.king<c>());
+    u64 atks_idx = king_attacks<c>(brd, k_idx);
+    for (auto atk_idx : BitIterator(atks_idx)) {
+        auto undo = make_move_undoable<c, King>(brd, Move(k_idx, atk_idx));
+        callback(brd);
+        undo_move(brd, undo);
+    }
+}
+
 // need to add some code to do FEN string parse/dump
 
 u64 perft_id = 0;
@@ -187,6 +199,10 @@ template <PieceColor c> u64 Perft(Board& brd, u32 depth) {
                   [](Board& brd, u32 piece_idx /* starting piece index*/) {
                       return queen_attacks<c>(brd, piece_idx);
                   }>(brd, [depth, &nodes](Board& brd) {
+        nodes += Perft<!c>(brd, depth - 1);
+    });
+
+    iterate_king_moves<c>(brd, [depth, &nodes](Board& brd) {
         nodes += Perft<!c>(brd, depth - 1);
     });
 

@@ -456,17 +456,16 @@ static consteval u64 knight_attack_map(u8 sqr_idx) {
     return attack_map;
 }
 
-static consteval auto build_knight_table() {
+template <auto AttackMap> consteval auto build_table() {
     std::array<u64, 64> table;
-
     for (size_t i = 0; i < 64; i++) {
-        table[i] = knight_attack_map(i);
+        table[i] = AttackMap(i);
     }
-
     return table;
 }
 
-static constexpr auto KNIGHT_ATTACK_TABLE = build_knight_table();
+static constexpr auto KNIGHT_ATTACK_TABLE =
+    build_table<[](auto idx) { return knight_attack_map(idx); }>();
 
 // assume white pieces
 
@@ -833,6 +832,46 @@ constexpr u64 rook_attacks_fixed(u64 occup, u8 sqr_idx) {
            fix_bits_file(occup, sqr_idx);
 }
 
+// bruh we need a helper to build constexpr attack array
+// based on function
+consteval u64 king_attack_map(u8 sqr_idx) {
+    // origin (0,0) is at bottom right.
+    static constexpr std::array<std::tuple<int, int>, 8> king_offsets = {{
+        {-1, 1},
+        {0, 1},
+        {1, 1},
+        {1, 0},
+        {1, -1},
+        {0, -1},
+        {-1, -1},
+        {-1, 0},
+    }};
+
+    u64 result = 0;
+
+    int x_idx = sqr_idx % 8;
+    int y_idx = sqr_idx / 8;
+
+    for (auto [dx, dy] : king_offsets) {
+        if (inbounds(x_idx + dx, y_idx + dy)) {
+            result |= 1ull << ((y_idx + dy) * 8 + x_idx + dx);
+        }
+    }
+
+    return result;
+}
+
+static constexpr auto KING_ATTACK_TABLE =
+    build_table<[](auto idx) { return king_attack_map(idx); }>();
+
+// This should probably be renamed to "king moves"
+// or something, and all related functions too.
+// these are psuedo-legal moves only
+template <PieceColor c> constexpr u64 king_attacks(Board& brd, u8 sqr_idx) {
+    assert(sqr_idx == std::countr_zero(brd.king<c>()));
+    return KING_ATTACK_TABLE[sqr_idx] & ~brd.color<c>();
+}
+
 // Tag that goes along move
 // c = color of move made
 template <PieceColor c> struct UndoTag {
@@ -881,6 +920,8 @@ constexpr UndoTag<c> make_move_undoable(Board& brd, Move mv) {
         // wp, wn, wr, wb, wq, wk, bp, bn, br, bb, bq, bk, white, black,
 
         // figure out which piece type was captured
+        // TODO figure out if it's fastest to just do series
+        // of ifs for early exit. This is branchless but idk.
         u64 b1 = brd.pawns<enemy>() & new_piece;
         u64 b2 = std::rotl(brd.knights<enemy>() & new_piece, 1);
         u64 b3 = std::rotl(brd.rooks<enemy>() & new_piece, 2);
