@@ -109,16 +109,13 @@ void iterate_pawn_moves(Board& brd, CallbackFunc callback) {
 // had to move... So this can just be handled as a
 // separate step.
 
-// TODO Do we ALWAYS need to return the number of moves here
-// or is that only for perft?
-template <PieceColor c, class CallbackFunc>
-void iterate_knight_moves(Board& brd, CallbackFunc callback) {
-    for (auto n_idx : BitIterator(brd.knights<c>())) {
-        // TODO Does it end up being cheapter to just do popcnt?
-        u64 atks = knight_attacks<c>(brd, n_idx);
+template <PieceType pt, PieceColor c, auto MoveGenerator, class CallbackFunc>
+void iterate_moves(Board& brd, CallbackFunc callback) {
+    for (auto n_idx : BitIterator(brd.board<c, pt>())) {
+        u64 atks = MoveGenerator(brd, n_idx);
         for (auto atk_idx : BitIterator(atks)) {
             auto undo =
-                make_move_undoable<c, Knight>(brd, Move(n_idx, atk_idx));
+                make_move_undoable<c, Bishop>(brd, Move(n_idx, atk_idx));
 
             callback(brd);
 
@@ -145,15 +142,12 @@ void print_2x2(u8 x) {
 // TODO figure out if we can avoid copying the board
 // TODO
 template <PieceColor c> u64 Perft(Board& brd, u32 depth) {
-    // MOVE move_list[256];
-
     u64 nodes = 0;
 
     if (depth == 0)
         return 1ULL;
 
     std::cout << "Perft: called with depth " << depth << '\n';
-    print_board(brd);
     std::cout << PCOL_STR[c] << '\n';
     std::cout << "==============================\n";
 
@@ -164,11 +158,28 @@ template <PieceColor c> u64 Perft(Board& brd, u32 depth) {
     //     UndoMove(move_list[i]);
     // }
 
+    // deduplicate?
+
     iterate_pawn_moves<c>(brd, [depth, &nodes](Board brd) {
         nodes += Perft<!c>(brd, depth - 1);
     });
 
-    iterate_knight_moves<c>(brd, [depth, &nodes](Board brd) {
+    // iterate_knight_moves<c>(brd, [depth, &nodes](Board brd) {
+    //     nodes += Perft<!c>(brd, depth - 1);
+    // });
+
+    // (board, starting piece index)
+    iterate_moves<Knight, c,
+                  [](Board& brd, u32 piece_idx /* starting piece index*/) {
+                      return knight_attacks<c>(brd, piece_idx);
+                  }>(brd, [depth, &nodes](Board brd) {
+        nodes += Perft<!c>(brd, depth - 1);
+    });
+
+    iterate_moves<Bishop, c,
+                  [](Board& brd, u32 piece_idx /* starting piece index*/) {
+                      return bishop_attacks<c>(brd, piece_idx);
+                  }>(brd, [depth, &nodes](Board brd) {
         nodes += Perft<!c>(brd, depth - 1);
     });
 
@@ -182,7 +193,10 @@ int main(int argc, char** argv) {
 
     // ok it actually seems correct now...
 
-    int depth = 2;
+    // should probably write some code to parse
+    // and generate FEN codes
+
+    int depth = 3;
     std::cout << "Perft(" << depth << ") = " << Perft<White>(brd, depth)
               << '\n';
 

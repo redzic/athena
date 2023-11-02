@@ -357,7 +357,7 @@ static constexpr std::string_view board_start = "8  . . . . . . . .\n"
                                                 "\n"
                                                 "   a b c d e f g h\n\n";
 
-_OptSize _NoInline void print_board(const Board& brd) {
+_OptSize _NoInline inline void print_board(const Board& brd) {
     Mailbox box;
     static_assert(sizeof(Square) == 1);
     static_assert(sizeof(box) == 64);
@@ -406,7 +406,7 @@ _OptSize _NoInline void print_board(const Board& brd) {
     std::cout.write(ostr.data(), ostr.size());
 }
 
-_OptSize _NoInline void print_bitboard(u64 bitboard) {
+_OptSize _NoInline void inline print_bitboard(u64 bitboard) {
     constexpr size_t ROW_SIZE = 8 * 2 + 3;
 
     std::array<char, board_start.size()> ostr;
@@ -454,7 +454,7 @@ static consteval u64 knight_attack_map(u8 sqr_idx) {
     return attack_map;
 }
 
-consteval auto build_knight_table() {
+static consteval auto build_knight_table() {
     std::array<u64, 64> table;
 
     for (size_t i = 0; i < 64; i++) {
@@ -564,7 +564,7 @@ constexpr bool is_board_valid_debug(const Board& brd) {
 // checks if there are multiple bitboards with the same bits set
 // for any of the squares
 
-constexpr u64 knight_attacks_multiple(u64 knights) {
+static constexpr u64 knight_attacks_multiple(u64 knights) {
     u64 l1 = (knights >> 1) & 0x7f7f7f7f7f7f7f7full;
     u64 l2 = (knights >> 2) & 0x3f3f3f3f3f3f3f3full;
     u64 r1 = (knights << 1) & 0xfefefefefefefefeull;
@@ -575,7 +575,7 @@ constexpr u64 knight_attacks_multiple(u64 knights) {
 }
 
 template <bool h = true, bool v = true>
-constexpr u64 rook_attack_map(u8 sqr_idx) {
+static constexpr u64 rook_attack_map(u8 sqr_idx) {
     // TODO make some kind of macro or function or something for this?
     const int x_idx = sqr_idx % 8;
     const int y_idx = sqr_idx / 8;
@@ -592,7 +592,7 @@ constexpr u64 rook_attack_map(u8 sqr_idx) {
     return result;
 }
 
-inline u64 rook_attack_trick_vertical(u8 sqr_idx, u64 o) {
+static inline u64 rook_attack_trick_vertical(u8 sqr_idx, u64 o) {
     // slider
     u64 s = 1ull << sqr_idx;
 
@@ -607,7 +607,8 @@ inline u64 rook_attack_trick_vertical(u8 sqr_idx, u64 o) {
     return line_attacks & m;
 }
 
-inline u64 rook_attack_trick(u8 sqr_idx, u64 o) {
+// TODO clean up these terrible ass function names
+static inline u64 rook_attack_trick(u8 sqr_idx, u64 o) {
     u64 result_v = rook_attack_trick_vertical(sqr_idx, o);
     // slider
     u64 s = 1ull << sqr_idx;
@@ -664,11 +665,11 @@ template <bool is_lr> consteval std::array<u64, 64> generate_bishop_map() {
 
 // bottom right = (0,0)
 
-constexpr auto bishop_map_lr = generate_bishop_map<true>();
-constexpr auto bishop_map_rl = generate_bishop_map<false>();
+static constexpr auto bishop_map_lr = generate_bishop_map<true>();
+static constexpr auto bishop_map_rl = generate_bishop_map<false>();
 
 // lr = left to right
-template <bool is_lr> constexpr u64 bishop_attack_map(u8 sqr_idx) {
+template <bool is_lr> static constexpr u64 bishop_attack_map(u8 sqr_idx) {
     auto lut = is_lr ? bishop_map_lr.data() : bishop_map_rl.data();
     return lut[sqr_idx];
 }
